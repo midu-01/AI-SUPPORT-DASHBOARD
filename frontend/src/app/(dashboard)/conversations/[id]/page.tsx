@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import { ConversationDetail } from "@/components/conversations/conversation-detail";
+import { serverApiFetch } from "@/lib/server-api";
+import type { Conversation, Message } from "@/types/api";
 
 /**
- * Placeholder — the message thread, composer, rename, and delete arrive in
- * Step 10. It exists now so the dashboard's "recent conversations" links resolve
- * instead of 404ing.
+ * Conversation detail — server-fetches the conversation and its messages so the
+ * first render is instant, then hands off to the client component for
+ * interactivity (rename, delete, send message).
  */
 export default async function ConversationDetailPage({
   params,
@@ -14,6 +19,20 @@ export default async function ConversationDetailPage({
 }) {
   const { id } = await params;
 
+  let conversation: Conversation;
+  let messages: Message[];
+
+  try {
+    [conversation, messages] = await Promise.all([
+      serverApiFetch<Conversation>(`/conversations/${id}`),
+      serverApiFetch<Message[]>(`/conversations/${id}/messages`),
+    ]);
+  } catch {
+    // 404 or ownership violation — redirect rather than showing an error page
+    // for a resource that doesn't exist (or isn't theirs).
+    redirect("/conversations");
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <Link
@@ -22,13 +41,14 @@ export default async function ConversationDetailPage({
       >
         ← All conversations
       </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight text-slate-900">
-        Conversation
-      </h1>
-      <p className="mt-1 text-sm text-slate-600">
-        The message thread for <code className="font-mono text-xs">{id}</code>{" "}
-        arrives in the next step.
-      </p>
+
+      <div className="mt-4">
+        <ConversationDetail
+          id={id}
+          initial={conversation}
+          initialMessages={messages}
+        />
+      </div>
     </div>
   );
 }
