@@ -279,12 +279,13 @@ run twice in a row unchanged, and the fix is what let me verify everything else 
 
 **Largest gap first:**
 
-- **The frontend's feature pages are not built.** What works end to end today is register,
-  login, logout, the route guard, and the authenticated shell (sidebar, top bar, navigation).
-  `/`, `/conversations`, and `/documents` render their heading and a note, not their data — so
-  conversation CRUD, message threads, search, and document upload are currently reachable only
-  through the API. The endpoints behind all of them are complete and documented in
-  `docs/api.md`.
+- **Two frontend feature pages are not built.** Working end to end today: register, login,
+  logout, the route guard, the authenticated shell, and the **dashboard** — stat row, account
+  details, and the recent conversation and document lists, all server-rendered from
+  `/dashboard/summary`. Still placeholders: `/conversations` and `/documents`, which render a
+  heading and a note rather than their data, so conversation CRUD, message threads, search, and
+  upload are reachable only through the API. The endpoints behind all of them are complete and
+  documented in `docs/api.md`.
 - **The frontend has no automated tests.** The backend has 42; the UI was verified by driving
   the real flow against a running API — signed-out redirect, valid-cookie render, forged-cookie
   rejection, and the already-signed-in bounce off `/login`. That is a check I ran, not a check
@@ -299,6 +300,12 @@ Frontend limitations and shortcuts:
   mapped back onto the fields, so drift degrades to a slower error rather than a wrong one.
 - **API types are hand-written** to mirror the Pydantic schemas rather than generated from the
   OpenAPI document. Small surface, no codegen step — but nothing enforces that they still match.
+- **The signed-in user is fetched twice per dashboard load.** The layout calls `/auth/me` to
+  gate the shell; the page calls `/dashboard/summary`, which also returns the user. React's
+  `cache` dedupes repeated calls to the *same* function within a render, but these are different
+  endpoints. Removing the second would mean the shared layout depending on a dashboard-specific
+  endpoint that `/conversations` and `/documents` have no use for, so the duplicate is
+  deliberate — and still fewer round-trips than the four this page would otherwise make.
 - **`npm audit` reports 12 high-severity advisories**, all dev-only transitive dependencies of
   ESLint and PostCSS (`brace-expansion`, `minimatch`). The fix is a breaking `eslint@10`
   upgrade; none of it ships in the production bundle, so it is recorded rather than forced.
