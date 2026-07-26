@@ -58,7 +58,8 @@ Interactive docs: `http://localhost:8000/docs` (Swagger UI)
 
 ## Error Envelope
 
-All errors return a consistent JSON body:
+All errors return a consistent JSON body — including validation failures and
+unhandled exceptions, via global handlers in `app/core/errors.py`:
 
 ```json
 {
@@ -66,6 +67,39 @@ All errors return a consistent JSON body:
   "code": "MACHINE_READABLE_CODE"
 }
 ```
+
+`detail` is for humans; `code` is for the frontend, which should never have to
+match on English prose to decide what to render.
+
+Validation failures (422) add a flattened `errors` array, so a form can map each
+problem straight onto a field:
+
+```json
+{
+  "detail": "Invalid request",
+  "code": "VALIDATION_ERROR",
+  "errors": [
+    { "field": "email", "message": "value is not a valid email address" },
+    { "field": "password", "message": "String should have at least 8 characters" }
+  ]
+}
+```
+
+### Codes
+
+| Code | Status | Raised when |
+|------|--------|-------------|
+| `VALIDATION_ERROR` | 422 | Request body or query parameters failed validation |
+| `UNAUTHENTICATED` | 401 | Missing, forged, or expired auth cookie |
+| `INVALID_CREDENTIALS` | 401 | Wrong password **or** unknown email — deliberately identical |
+| `EMAIL_ALREADY_REGISTERED` | 409 | Email is taken (also covers the concurrent-signup race) |
+| `CONVERSATION_NOT_FOUND` | 404 | Missing **or** owned by another user |
+| `DOCUMENT_NOT_FOUND` | 404 | Missing **or** owned by another user |
+| `FILE_TYPE_NOT_ALLOWED` | 400 | MIME type outside PDF / DOCX / TXT |
+| `FILE_TOO_LARGE` | 413 | Upload exceeded 10 MB (detected mid-stream) |
+| `FILE_EMPTY` | 400 | Upload contained no bytes |
+| `FILENAME_REQUIRED` | 400 | Multipart part carried no filename |
+| `INTERNAL_ERROR` | 500 | Unhandled exception; details go to the logs, never the client |
 
 Common HTTP status codes used:
 

@@ -1,9 +1,10 @@
 from typing import AsyncGenerator
 
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, status
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import AppError
 from app.core.security import decode_access_token
 from app.db.session import AsyncSessionLocal
 from app.models.user import User
@@ -19,8 +20,9 @@ async def get_current_user(
     access_token: str | None = Cookie(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    credentials_exception = HTTPException(
+    credentials_exception = AppError(
         status_code=status.HTTP_401_UNAUTHORIZED,
+        code="UNAUTHENTICATED",
         detail="Could not validate credentials",
     )
     if not access_token:

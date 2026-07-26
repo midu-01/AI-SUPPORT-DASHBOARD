@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
+from app.core.errors import AppError
 from app.models.user import User
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.message_repository import MessageRepository
@@ -17,9 +18,18 @@ router = APIRouter()
 
 
 def _check_ownership(conversation, current_user: User):
-    """Return 404 regardless — avoids leaking resource existence via 403."""
+    """Return 404 regardless — avoids leaking resource existence via 403.
+
+    "Missing" and "belongs to someone else" are deliberately indistinguishable:
+    a 403 would confirm that the id is real, letting an attacker enumerate which
+    conversations exist without ever being able to read one.
+    """
     if conversation is None or conversation.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+        raise AppError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="CONVERSATION_NOT_FOUND",
+            detail="Conversation not found",
+        )
 
 
 @router.post(

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db
+from app.core.errors import AppError
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
@@ -22,8 +23,9 @@ async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
     user_repo = UserRepository(db)
     existing = await user_repo.get_by_email(payload.email)
     if existing:
-        raise HTTPException(
+        raise AppError(
             status_code=status.HTTP_409_CONFLICT,
+            code="EMAIL_ALREADY_REGISTERED",
             detail="Email already registered",
         )
     hashed = hash_password(payload.password)
@@ -38,8 +40,9 @@ async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
         # unique index on users.email is the actual guarantee, so translate its
         # violation into the same 409 instead of a 500.
         await db.rollback()
-        raise HTTPException(
+        raise AppError(
             status_code=status.HTTP_409_CONFLICT,
+            code="EMAIL_ALREADY_REGISTERED",
             detail="Email already registered",
         )
     return user
@@ -58,8 +61,11 @@ async def login(
     user_repo = UserRepository(db)
     user = await user_repo.get_by_email(payload.email)
     if not user or not verify_password(payload.password, user.hashed_password):
-        raise HTTPException(
+        # One message for both "no such user" and "wrong password", so the
+        # response cannot be used to discover which emails are registered.
+        raise AppError(
             status_code=status.HTTP_401_UNAUTHORIZED,
+            code="INVALID_CREDENTIALS",
             detail="Invalid email or password",
         )
     token = create_access_token(user.id)

@@ -21,6 +21,8 @@ dependencies = [
     "bcrypt>=4.1",
     "python-jose[cryptography]>=3.3.0",
     "python-multipart>=0.0.9",
+    # Used directly for non-blocking file writes on upload.
+    "anyio>=4.0",
 ]
 
 [project.optional-dependencies]
