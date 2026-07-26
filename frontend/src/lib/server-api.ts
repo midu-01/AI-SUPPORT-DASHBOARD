@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 import { ApiError, apiFetch } from "./api-client";
 import type { User } from "@/types/api";
@@ -40,8 +41,13 @@ export async function serverApiFetch<T>(
  * Only 401 becomes `null`. A 500 is re-thrown so a backend outage surfaces as an
  * error page instead of silently masquerading as "logged out" and bouncing the
  * user to /login with no explanation.
+ *
+ * Wrapped in React's `cache` so that a layout and the page inside it can both
+ * ask "who is signed in?" without producing two `/auth/me` round-trips. The
+ * cache lives for exactly one server render, so it dedupes without ever holding
+ * one request's user across another's.
  */
-export async function getCurrentUser(): Promise<User | null> {
+export const getCurrentUser = cache(async (): Promise<User | null> => {
   try {
     return await serverApiFetch<User>("/auth/me");
   } catch (error) {
@@ -50,4 +56,4 @@ export async function getCurrentUser(): Promise<User | null> {
     }
     throw error;
   }
-}
+});
