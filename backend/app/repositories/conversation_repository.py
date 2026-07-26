@@ -2,6 +2,12 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.conversation import Conversation
+from app.models.message import Message
+
+
+def _escape_like(value: str) -> str:
+    """Escape LIKE wildcards so a user searching for "50%" doesn't match everything."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 class ConversationRepository:
@@ -23,9 +29,18 @@ class ConversationRepository:
     ) -> tuple[list[Conversation], int]:
         base_query = select(Conversation).where(Conversation.user_id == user_id)
 
-        if query:
+        if query and query.strip():
+            # Match the conversation title, or the text of any message inside it.
+            # .any() becomes an EXISTS subquery, so a conversation with several
+            # matching messages is still returned once — no JOIN + DISTINCT needed.
+            pattern = f"%{_escape_like(query.strip())}%"
             base_query = base_query.where(
-                Conversation.title.ilike(f"%{query}%")
+                or_(
+                    Conversation.title.ilike(pattern, escape="\\"),
+                    Conversation.messages.any(
+                        Message.content.ilike(pattern, escape="\\")
+                    ),
+                )
             )
 
         count_result = await self.db.execute(
