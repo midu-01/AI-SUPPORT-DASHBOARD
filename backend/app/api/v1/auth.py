@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -6,7 +7,7 @@ from app.core.deps import get_current_user, get_db
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import TokenResponse, UserCreate, UserLogin, UserRead
+from app.schemas.user import LoginResponse, UserCreate, UserLogin, UserRead
 
 router = APIRouter()
 
@@ -26,17 +27,27 @@ async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
             detail="Email already registered",
         )
     hashed = hash_password(payload.password)
-    user = await user_repo.create(
-        email=payload.email,
-        hashed_password=hashed,
-        full_name=payload.full_name,
-    )
+    try:
+        user = await user_repo.create(
+            email=payload.email,
+            hashed_password=hashed,
+            full_name=payload.full_name,
+        )
+    except IntegrityError:
+        # Two simultaneous registrations can both pass the check above; the
+        # unique index on users.email is the actual guarantee, so translate its
+        # violation into the same 409 instead of a 500.
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered",
+        )
     return user
 
 
 @router.post(
     "/login",
-    response_model=TokenResponse,
+    response_model=LoginResponse,
     summary="Login and receive an httpOnly cookie",
 )
 async def login(
@@ -63,12 +74,19 @@ async def login(
         # never expire at different times.
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
-    return TokenResponse()
+    return LoginResponse()
 
 
 @router.post("/logout", summary="Clear the auth cookie")
 async def logout(response: Response):
-    response.delete_cookie("access_token")
+    # The attributes must match the ones used to set the cookie, otherwise
+    # browsers treat it as a different cookie and leave the original in place.
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="lax",
+        secure=settings.APP_ENV != "development",
+    )
     return {"message": "Logged out"}
 
 
