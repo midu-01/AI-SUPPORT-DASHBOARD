@@ -1,4 +1,9 @@
-from pydantic_settings import BaseSettings
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# backend/app/core/config.py -> backend/
+BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -7,8 +12,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me-in-production"
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_support"
-    TEST_DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_support_test"
+    DATABASE_URL: str = "postgresql+asyncpg://midu@localhost:5432/ai_support"
+    TEST_DATABASE_URL: str = "postgresql+asyncpg://midu@localhost:5432/ai_support_test"
 
     # JWT
     JWT_ALGORITHM: str = "HS256"
@@ -26,9 +31,13 @@ class Settings(BaseSettings):
     ]
     UPLOAD_DIR: str = "uploads"
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    # Absolute path, so settings load the same whether the process starts in
+    # backend/ (uvicorn, alembic) or the repo root (pytest from an IDE).
+    model_config = SettingsConfigDict(
+        env_file=BACKEND_DIR / ".env",
+        case_sensitive=True,
+        extra="ignore",
+    )
 
 
 settings = Settings()

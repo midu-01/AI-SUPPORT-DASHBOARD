@@ -8,7 +8,7 @@ upload, and search. Built with Next.js, FastAPI, and PostgreSQL.
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.11+ (macOS ships 3.9 — install a newer one, e.g. `brew install python@3.12`)
 - Node.js 18+
 - PostgreSQL 14+ running locally
 
@@ -28,7 +28,7 @@ If your PostgreSQL uses a different superuser, add it: `createdb -U postgres ai_
 
 ```bash
 cd backend
-python3 -m venv .venv
+python3.12 -m venv .venv           # any Python >= 3.11
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 

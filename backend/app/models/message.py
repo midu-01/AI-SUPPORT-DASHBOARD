@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -17,12 +17,24 @@ class Message(Base):
     __tablename__ = "messages"
 
     id: Mapped[str] = mapped_column(
-        String, primary_key=True, default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     conversation_id: Mapped[str] = mapped_column(
-        String, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
+        String(36), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
     )
-    role: Mapped[MessageRole] = mapped_column(String, nullable=False)
+    # VARCHAR + CHECK rather than a native PostgreSQL ENUM type: the database
+    # still rejects invalid roles, but adding a value later is a plain constraint
+    # swap instead of an ALTER TYPE that cannot run inside a transaction.
+    role: Mapped[MessageRole] = mapped_column(
+        SAEnum(
+            MessageRole,
+            name="message_role",
+            native_enum=False,
+            create_constraint=True,
+            length=20,
+        ),
+        nullable=False,
+    )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
