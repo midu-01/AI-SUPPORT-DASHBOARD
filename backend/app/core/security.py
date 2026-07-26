@@ -1,20 +1,32 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import bcrypt
 from jose import jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt hashes only the first 72 bytes of input and raises on anything longer,
+# so the password is truncated to that boundary before hashing and before every
+# verification. Both paths must truncate identically or valid logins would fail.
+BCRYPT_MAX_BYTES = 72
+
+
+def _prepare(password: str) -> bytes:
+    return password.encode("utf-8")[:BCRYPT_MAX_BYTES]
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(_prepare(password), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(_prepare(plain_password), hashed_password.encode("utf-8"))
+    except ValueError:
+        # Malformed or truncated hash in the database — treat as a failed login
+        # rather than surfacing a 500.
+        return False
 
 
 def create_access_token(subject: Any) -> str:

@@ -16,7 +16,9 @@ dependencies = [
     "pydantic>=2.7.0",
     "pydantic-settings>=2.2.0",
     "pydantic[email]>=2.7.0",
-    "passlib[bcrypt]>=1.7.4",
+    # bcrypt directly, not passlib: passlib 1.7.4 (2020) is unmaintained and
+    # crashes against bcrypt >= 4.1, which every fresh install now resolves to.
+    "bcrypt>=4.1",
     "python-jose[cryptography]>=3.3.0",
     "python-multipart>=0.0.9",
 ]
@@ -35,3 +37,9 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Fixtures and tests must share one event loop. With the default (function)
+# scope, a session-scoped async fixture builds its connections on a loop that is
+# already closed by the time a test runs, which asyncpg reports as the very
+# confusing "another operation is in progress".
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"

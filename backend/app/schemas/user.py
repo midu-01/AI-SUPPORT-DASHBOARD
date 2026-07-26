@@ -9,6 +9,14 @@ class UserCreate(BaseModel):
     full_name: str
 
 
+class UserLogin(BaseModel):
+    """Login needs only credentials — reusing UserCreate here would force
+    clients to send full_name just to sign in."""
+
+    email: EmailStr
+    password: str
+
+
 class UserRead(BaseModel):
     id: str
     email: str

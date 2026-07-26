@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.deps import get_current_user, get_db
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import TokenResponse, UserCreate, UserRead
+from app.schemas.user import TokenResponse, UserCreate, UserLogin, UserRead
 
 router = APIRouter()
 
@@ -39,7 +40,7 @@ async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
     summary="Login and receive an httpOnly cookie",
 )
 async def login(
-    payload: UserCreate,
+    payload: UserLogin,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
@@ -56,8 +57,11 @@ async def login(
         value=token,
         httponly=True,
         samesite="lax",
-        secure=False,  # Set to True in production (HTTPS)
-        max_age=60 * 60 * 24,  # 24 hours
+        # Off in local development because there is no HTTPS; on everywhere else.
+        secure=settings.APP_ENV != "development",
+        # Derived from the token's own lifetime so the cookie and the JWT can
+        # never expire at different times.
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
     return TokenResponse()
 

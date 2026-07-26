@@ -29,10 +29,10 @@ async def test_login_and_me(client: AsyncClient):
         "password": "password123",
         "full_name": "Login User",
     })
+    # Login takes credentials only — no full_name.
     login_resp = await client.post("/api/v1/auth/login", json={
         "email": "login@example.com",
         "password": "password123",
-        "full_name": "",
     })
     assert login_resp.status_code == 200
     assert "access_token" in login_resp.cookies

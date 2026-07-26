@@ -17,8 +17,11 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # The URL lives in backend/.env, not alembic.ini, so there is exactly one place
-# to configure the database and no credentials are committed.
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# to configure the database and no credentials are committed. A caller running
+# Alembic programmatically (the test suite) can point it elsewhere by setting
+# config.attributes["sqlalchemy_url"] first.
+DATABASE_URL = config.attributes.get("sqlalchemy_url") or settings.DATABASE_URL
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 target_metadata = Base.metadata
 
@@ -26,7 +29,7 @@ target_metadata = Base.metadata
 def run_migrations_offline() -> None:
     """Emit SQL to stdout instead of running it against a database."""
     context.configure(
-        url=settings.DATABASE_URL,
+        url=DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
