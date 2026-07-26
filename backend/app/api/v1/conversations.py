@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
-from app.core.errors import AppError
+from app.core.errors import AppError, error_docs
 from app.models.user import User
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.message_repository import MessageRepository
@@ -15,6 +15,15 @@ from app.schemas.conversation import (
 from app.schemas.message import MessageCreate, MessageRead
 
 router = APIRouter()
+
+# Deliberately 404 and not 403 — see _check_ownership below.
+NOT_FOUND = error_docs(
+    (
+        404,
+        "CONVERSATION_NOT_FOUND",
+        "Conversation does not exist, or belongs to another user",
+    )
+)
 
 
 def _check_ownership(conversation, current_user: User):
@@ -70,6 +79,7 @@ async def list_conversations(
     "/{conversation_id}",
     response_model=ConversationRead,
     summary="Get a single conversation",
+    responses=NOT_FOUND,
 )
 async def get_conversation(
     conversation_id: str,
@@ -86,6 +96,7 @@ async def get_conversation(
     "/{conversation_id}",
     response_model=ConversationRead,
     summary="Rename a conversation",
+    responses=NOT_FOUND,
 )
 async def update_conversation(
     conversation_id: str,
@@ -103,6 +114,7 @@ async def update_conversation(
     "/{conversation_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a conversation",
+    responses=NOT_FOUND,
 )
 async def delete_conversation(
     conversation_id: str,
@@ -121,6 +133,7 @@ async def delete_conversation(
     "/{conversation_id}/messages",
     response_model=list[MessageRead],
     summary="Get all messages in a conversation",
+    responses=NOT_FOUND,
 )
 async def list_messages(
     conversation_id: str,
@@ -140,6 +153,7 @@ async def list_messages(
     response_model=MessageRead,
     status_code=status.HTTP_201_CREATED,
     summary="Add a message to a conversation",
+    responses=NOT_FOUND,
 )
 async def create_message(
     conversation_id: str,

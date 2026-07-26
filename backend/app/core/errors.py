@@ -47,6 +47,44 @@ HTTP_422_UNPROCESSABLE = 422
 HTTP_413_TOO_LARGE = 413
 
 
+def error_docs(*entries: tuple[int, str, str]) -> dict:
+    """Build an OpenAPI `responses` entry for each (status, code, description).
+
+    Documented failures are as much a part of the contract as the success shape:
+    a client that only knows the 200 body has to guess at everything else.
+    """
+    from app.schemas.errors import ErrorResponse  # local import: avoids a cycle
+
+    documented: dict[int, dict] = {}
+    for status_code, code, description in entries:
+        documented[status_code] = {
+            "model": ErrorResponse,
+            "description": description,
+            "content": {
+                "application/json": {
+                    "example": {"detail": description, "code": code}
+                }
+            },
+        }
+    return documented
+
+
+def protected_route_responses() -> dict:
+    """The failures every authenticated endpoint shares."""
+    from app.schemas.errors import ValidationErrorResponse
+
+    responses = error_docs(
+        (401, "UNAUTHENTICATED", "Missing, forged, or expired authentication cookie"),
+    )
+    # Overrides FastAPI's built-in HTTPValidationError, which is not what the
+    # RequestValidationError handler actually returns.
+    responses[422] = {
+        "model": ValidationErrorResponse,
+        "description": "Request failed validation",
+    }
+    return responses
+
+
 def _envelope(status_code: int, code: str, detail: str, **extra) -> JSONResponse:
     return JSONResponse(
         status_code=status_code, content={"detail": detail, "code": code, **extra}

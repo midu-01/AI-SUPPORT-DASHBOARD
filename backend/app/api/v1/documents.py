@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db
-from app.core.errors import HTTP_413_TOO_LARGE, AppError
+from app.core.errors import HTTP_413_TOO_LARGE, AppError, error_docs
 from app.models.user import User
 from app.repositories.document_repository import DocumentRepository
 from app.schemas.document import DocumentRead
@@ -30,6 +30,16 @@ CHUNK_SIZE = 1024 * 1024  # 1 MiB
     response_model=DocumentRead,
     status_code=status.HTTP_201_CREATED,
     summary="Upload a document (metadata only)",
+    description=(
+        "Accepts `multipart/form-data`. Allowed types: PDF, DOCX, TXT. The size "
+        "limit is enforced while streaming, so an oversized upload is rejected "
+        "without being held in memory. The stored filename is generated "
+        "server-side; the client's filename is kept only as metadata."
+    ),
+    responses=error_docs(
+        (400, "FILE_TYPE_NOT_ALLOWED", "File type is not PDF, DOCX, or TXT"),
+        (413, "FILE_TOO_LARGE", "File exceeds the 10 MB size limit"),
+    ),
 )
 async def upload_document(
     file: UploadFile,
@@ -124,6 +134,13 @@ async def list_documents(
     "/{document_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a document",
+    responses=error_docs(
+        (
+            404,
+            "DOCUMENT_NOT_FOUND",
+            "Document does not exist, or belongs to another user",
+        )
+    ),
 )
 async def delete_document(
     document_id: str,

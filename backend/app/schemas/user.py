@@ -32,6 +32,12 @@ class UserRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class MessageResponse(BaseModel):
+    """A plain acknowledgement for endpoints with nothing else to return."""
+
+    message: str
+
+
 class LoginResponse(BaseModel):
     """No token in the body on purpose.
 

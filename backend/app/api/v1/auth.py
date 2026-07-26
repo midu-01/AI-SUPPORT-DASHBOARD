@@ -4,11 +4,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db
-from app.core.errors import AppError
+from app.core.errors import AppError, error_docs
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import LoginResponse, UserCreate, UserLogin, UserRead
+from app.schemas.errors import ValidationErrorResponse
+from app.schemas.user import (
+    LoginResponse,
+    MessageResponse,
+    UserCreate,
+    UserLogin,
+    UserRead,
+)
 
 router = APIRouter()
 
@@ -18,6 +25,10 @@ router = APIRouter()
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user",
+    responses={
+        **error_docs((409, "EMAIL_ALREADY_REGISTERED", "Email is already registered")),
+        422: {"model": ValidationErrorResponse, "description": "Request failed validation"},
+    },
 )
 async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
     user_repo = UserRepository(db)
@@ -52,6 +63,14 @@ async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
     "/login",
     response_model=LoginResponse,
     summary="Login and receive an httpOnly cookie",
+    description=(
+        "On success the JWT is set as an `httpOnly`, `SameSite=Lax` cookie. It is "
+        "deliberately **not** included in the response body: putting it there "
+        "would expose to JavaScript the exact value the cookie exists to hide."
+    ),
+    responses=error_docs(
+        (401, "INVALID_CREDENTIALS", "Unknown email or wrong password"),
+    ),
 )
 async def login(
     payload: UserLogin,
@@ -83,7 +102,12 @@ async def login(
     return LoginResponse()
 
 
-@router.post("/logout", summary="Clear the auth cookie")
+@router.post(
+    "/logout",
+    response_model=MessageResponse,
+    summary="Clear the auth cookie",
+    description="Safe to call when not logged in; clearing an absent cookie is a no-op.",
+)
 async def logout(response: Response):
     # The attributes must match the ones used to set the cookie, otherwise
     # browsers treat it as a different cookie and leave the original in place.
@@ -96,6 +120,13 @@ async def logout(response: Response):
     return {"message": "Logged out"}
 
 
-@router.get("/me", response_model=UserRead, summary="Get current user")
+@router.get(
+    "/me",
+    response_model=UserRead,
+    summary="Get current user",
+    responses=error_docs(
+        (401, "UNAUTHENTICATED", "Missing, forged, or expired authentication cookie")
+    ),
+)
 async def me(current_user: User = Depends(get_current_user)):
     return current_user
