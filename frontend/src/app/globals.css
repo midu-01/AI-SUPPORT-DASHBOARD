@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/*
+  Light mode only — see ASSUMPTIONS.md. The scaffold's `prefers-color-scheme:
+  dark` block was removed rather than left in place: a dark palette that no page
+  is designed or checked against renders half the UI unreadable the moment a
+  reviewer's OS is set to dark. An absent feature beats a broken one.
+
+  Semantic tokens only. Everything else uses Tailwind's default slate scale, so
+  there is one palette in play rather than two competing ones.
+*/
+@theme inline {
+  --color-canvas: #f8fafc; /* slate-50   — app background  */
+  --color-surface: #ffffff; /* cards, panels                */
+  --color-border: #e2e8f0; /* slate-200  — hairlines       */
+  --color-brand: #4f46e5; /* indigo-600 — primary action  */
+  --color-brand-hover: #4338ca; /* indigo-700                   */
+  --color-danger: #dc2626; /* red-600    — destructive     */
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-slate-900);
+}
+
+/*
+  A visible focus ring on keyboard navigation only. `:focus-visible` rather than
+  `:focus`, so a mouse click doesn't leave a ring behind — which is the usual
+  reason people delete focus styling altogether and break keyboard navigation
+  in the process.
+*/
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}

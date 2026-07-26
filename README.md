@@ -45,10 +45,12 @@ http://localhost:8000/docs.
 ```bash
 cd frontend
 npm install
+cp .env.example .env.local        # optional — defaults to http://localhost:8000/api/v1
 npm run dev
 ```
 
-The app runs at http://localhost:3000.
+The app runs at http://localhost:3000. Start the backend first: the frontend reads
+`NEXT_PUBLIC_API_URL` and calls it directly.
 
 ## Tests
 

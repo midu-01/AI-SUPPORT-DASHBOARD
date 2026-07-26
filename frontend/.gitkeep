@@ -1,9 +1,0 @@
-# Frontend placeholder — to be scaffolded with:
-# npx create-next-app@latest . --typescript --tailwind --app --eslint
-#
-# Then add:
-#   @tanstack/react-query
-#   zod
-#   react-hook-form
-#   lucide-react
-#   shadcn/ui

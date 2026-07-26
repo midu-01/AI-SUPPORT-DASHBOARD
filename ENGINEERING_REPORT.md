@@ -67,8 +67,15 @@ The intended design, for completeness: Server Components fetch initial data so t
 client-side request waterfall, `"use client"` only where interactivity is needed, and React
 Query for server-state caching and invalidation rather than Redux or Zustand — almost all
 state in this app is server state, so a global store would add boilerplate without solving a
-problem. The `httpOnly` cookie from Decision 1 is readable in Next.js `middleware.ts`, which
-is what would protect routes server-side.
+problem.
+
+Route protection uses `proxy.ts`, not `middleware.ts`: Next.js 16 renamed the convention, and
+the old filename is deprecated. Worth being precise about what that buys, because it is easy
+to overstate — Next's own documentation calls proxy unsuitable for authorisation and suited
+only to "optimistic checks". The redirect there is a **UX** affordance that avoids rendering a
+dashboard shell to a signed-out visitor. It is not a security boundary. The real check is that
+every `/api/v1` route independently validates the cookie server-side, so a forged or absent
+token fails at the backend regardless of what the frontend decided to render.
 
 ---
 
@@ -80,7 +87,7 @@ is what would protect routes server-side.
 |---|---|---|
 | XSS safety | JavaScript cannot read it | Fully readable by any injected script |
 | CSRF risk | Needs `SameSite` (set to `Lax`) | Not applicable |
-| SSR access | Readable in Next.js middleware | Unavailable server-side |
+| SSR access | Readable in Next.js `proxy.ts` | Unavailable server-side |
 
 **Why:** an XSS bug anywhere in the app would hand an attacker a `localStorage` token
 outright. `SameSite=Lax` covers the CSRF exposure that a cookie introduces, and it is the
