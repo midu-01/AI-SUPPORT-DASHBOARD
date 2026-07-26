@@ -1,0 +1,6 @@
+# Services layer
+# Business logic lives here, between the API routers and repositories.
+# Each service orchestrates one or more repositories and contains
+# domain rules that don't belong in the HTTP layer.
+#
+# Example: conversation_service.py, document_service.py
