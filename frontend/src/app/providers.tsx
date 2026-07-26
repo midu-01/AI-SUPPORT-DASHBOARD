@@ -3,6 +3,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
+import { ApiError } from "@/lib/api-client";
+
 /**
  * React Query provider — the app's only global state container.
  *
@@ -27,7 +29,15 @@ export function Providers({ children }: { children: ReactNode }) {
             // every time the window regains focus is mostly wasted requests.
             refetchOnWindowFocus: false,
             staleTime: 30_000,
-            retry: 1,
+            // Retrying a 4xx is pointless — the request was rejected on its
+            // merits, and repeating it verbatim gets the same answer. Worse, a
+            // retried 401 delays the redirect to /login by however long the
+            // backoff takes, so an expired session looks like a hung page.
+            // Only 5xx and network failures are worth a second attempt.
+            retry: (failureCount, error) => {
+              if (error instanceof ApiError && error.status < 500) return false;
+              return failureCount < 1;
+            },
           },
         },
       }),

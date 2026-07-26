@@ -6,10 +6,12 @@ An AI-ready customer support dashboard: users register and log in, own private
 conversations made up of messages, upload documents (PDF / DOCX / TXT) whose metadata is
 stored in PostgreSQL, and search across their conversations by title *or* message text.
 
-**Current state:** the backend is complete and covered by 42 passing tests. **The Next.js
-frontend is not implemented** — the API is finished and documented, but there is no UI yet.
-This is the largest gap in the submission and I would rather state it plainly than imply
-otherwise; §6 lists it first.
+**Current state:** the backend is complete and covered by 42 passing tests. The Next.js
+frontend is **partially built**: registration, login, logout, the route guard, and the
+authenticated application shell all work end to end against the real API. The dashboard,
+conversation, and document *pages* are still placeholders. §6 says which is which — the
+distinction matters more than a percentage, and I would rather state it plainly than let a
+screenshot imply the rest is finished.
 
 "AI-ready" is interpreted as a requirement on the *data model*, not on behaviour. No LLM is
 called anywhere. Instead `messages.role` (`user` / `assistant`) and `documents.status`
@@ -25,7 +27,7 @@ Stack: FastAPI, SQLAlchemy 2.0 async (`asyncpg`), Alembic, PostgreSQL 18, Pydant
 ```
 ai-support-dashboard/
 ├── backend/          FastAPI — Router → Repository
-├── frontend/         Next.js App Router — NOT YET IMPLEMENTED
+├── frontend/         Next.js App Router — auth + shell built, feature pages pending
 └── docs/             ER diagram, API reference
 ```
 
@@ -61,21 +63,55 @@ enumerate valid IDs without ever reading one.
 test database by running the real migration rather than `create_all`, so a migration that
 drifts from the models fails the build instead of shipping.
 
-### Frontend (planned, not built)
+### Frontend
 
-The intended design, for completeness: Server Components fetch initial data so there is no
-client-side request waterfall, `"use client"` only where interactivity is needed, and React
-Query for server-state caching and invalidation rather than Redux or Zustand — almost all
-state in this app is server state, so a global store would add boilerplate without solving a
-problem.
+Next.js 16 (App Router), React 19, Tailwind v4, TypeScript. Route groups `(auth)` and
+`(dashboard)` give the two areas different chrome without adding a path segment, so the pages
+live at `/login` and `/`, not `/auth/login`.
 
-Route protection uses `proxy.ts`, not `middleware.ts`: Next.js 16 renamed the convention, and
-the old filename is deprecated. Worth being precise about what that buys, because it is easy
-to overstate — Next's own documentation calls proxy unsuitable for authorisation and suited
-only to "optimistic checks". The redirect there is a **UX** affordance that avoids rendering a
-dashboard shell to a signed-out visitor. It is not a security boundary. The real check is that
-every `/api/v1` route independently validates the cookie server-side, so a forged or absent
-token fails at the backend regardless of what the frontend decided to render.
+Server Components are the default and fetch on the server, so the signed-in user's name is in
+the first HTML response rather than arriving after a client round-trip. `"use client"` is
+applied only where something is genuinely interactive — the two forms, the nav (it needs
+`usePathname`), and the sign-out button. React Query handles server-state caching and
+invalidation instead of Redux or Zustand; almost all state here is server state, so a global
+store would add boilerplate without solving a problem.
+
+**No component library.** The UI is a small set of hand-written Tailwind components
+(`button`, `card`, `text-field`, `form-error`). shadcn/ui would have reached a polished look
+faster, but it copies a dozen-plus Radix wrappers into the repository, and the brief asks that
+I understand everything I submit. The accessibility details that a library would have supplied
+are therefore explicit: `useId` ties every label to its input, `aria-invalid` and
+`aria-describedby` connect a validation message to the field that caused it, and `role="alert"`
+announces errors when they appear.
+
+**One error path.** The backend's `{ detail, code }` envelope is unwrapped once, in
+`lib/api-client.ts`, into an `ApiError` carrying `status`, `code`, and the flattened
+`fieldErrors`. Forms branch on `code`, never on `detail` — the backend documents `detail` as
+human prose, so matching on it would break the UI on a copy edit. A 422's `errors` array is
+mapped back onto the offending inputs, which is the reason the backend flattens it.
+
+**Two layers of route protection, and only one of them is real.**
+
+The first is `src/proxy.ts` — `proxy`, not `middleware`: Next.js 16 renamed the convention and
+deprecated the old filename, and the file belongs beside `app/` rather than inside it, where it
+would be an ordinary module that never runs. It redirects a request with no `access_token`
+cookie to `/login`.
+
+It is worth being exact about what that buys, because it is the easiest thing in this project
+to overstate. **The proxy checks only that a cookie exists.** It never verifies the signature
+or the expiry, so anyone can set `access_token=nonsense` in devtools and walk straight past it.
+Next's own documentation says the same thing — proxy is for "optimistic checks", not
+authorisation.
+
+The second layer is the one that holds. The `(dashboard)` layout is a Server Component that
+calls `GET /auth/me` and redirects when it comes back 401, and every `/api/v1` route validates
+the cookie independently. So the proxy's job is purely to avoid a wasted server render for the
+common signed-out case, and correctness never depends on it.
+
+I verified this rather than assuming it. With a forged cookie the proxy passes the request
+through, `getCurrentUser()` receives a 401 from the backend, and the layout redirects — the
+browser gets a 307 to `/login`, and the same forged token against `/api/v1/auth/me` returns
+401. A guard that has never been tested against the case it exists for is a guess.
 
 ---
 
@@ -243,8 +279,29 @@ run twice in a row unchanged, and the fix is what let me verify everything else 
 
 **Largest gap first:**
 
-- **The Next.js frontend is not implemented.** The backend API is complete, documented in
-  `docs/api.md`, and browsable via Swagger UI at `/docs`, but there is no UI.
+- **The frontend's feature pages are not built.** What works end to end today is register,
+  login, logout, the route guard, and the authenticated shell (sidebar, top bar, navigation).
+  `/`, `/conversations`, and `/documents` render their heading and a note, not their data — so
+  conversation CRUD, message threads, search, and document upload are currently reachable only
+  through the API. The endpoints behind all of them are complete and documented in
+  `docs/api.md`.
+- **The frontend has no automated tests.** The backend has 42; the UI was verified by driving
+  the real flow against a running API — signed-out redirect, valid-cookie render, forged-cookie
+  rejection, and the already-signed-in bounce off `/login`. That is a check I ran, not a check
+  that runs. A regression here would not fail anything.
+
+Frontend limitations and shortcuts:
+
+- **The proxy guard is a UX redirect, not authorisation** — it only tests for a cookie's
+  presence. §2 covers why that is safe here and what actually enforces access.
+- **Client-side validation duplicates the backend's Pydantic rules** in `lib/validation.ts`.
+  Two definitions of the same rules can drift; the server is authoritative and its 422 is
+  mapped back onto the fields, so drift degrades to a slower error rather than a wrong one.
+- **API types are hand-written** to mirror the Pydantic schemas rather than generated from the
+  OpenAPI document. Small surface, no codegen step — but nothing enforces that they still match.
+- **`npm audit` reports 12 high-severity advisories**, all dev-only transitive dependencies of
+  ESLint and PostCSS (`brace-expansion`, `minimatch`). The fix is a breaking `eslint@10`
+  upgrade; none of it ships in the production bundle, so it is recorded rather than forced.
 
 Backend limitations and shortcuts:
 
@@ -278,9 +335,13 @@ trusting the code that generated it.
 
 **If you had one additional day, what would you improve?**
 
-Build the frontend — it is the missing half of the submission, and nothing else would improve
-the result as much. With time left over: replace `python-jose` with `PyJWT`, sniff magic bytes
-on upload instead of trusting the client's header, and paginate the messages endpoint.
+Finish the frontend's feature pages. The shell and the auth flow are in place, so the remaining
+work is the dashboard summary, conversation CRUD with search, and the upload UI — nothing else
+would improve the result as much, because those are the features the brief actually names.
+
+After that, in order: a handful of frontend tests (the UI is the only part of the project with
+no automated coverage), replacing `python-jose` with `PyJWT`, sniffing magic bytes on upload
+instead of trusting the client's header, and paginating the messages endpoint.
 
 **What part took the longest?**
 
