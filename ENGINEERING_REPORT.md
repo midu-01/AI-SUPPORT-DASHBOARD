@@ -334,11 +334,7 @@ Frontend limitations and shortcuts:
 
 Backend limitations and shortcuts:
 
-- **Upload MIME type is taken from the client's `Content-Type` header**, which is spoofable.
-  The extension written to disk is chosen from a server-side map so a hostile filename cannot
-  escape the upload directory, but real validation means sniffing magic bytes.
-- **`python-jose` is unmaintained** (CVE-2024-33663, CVE-2024-33664). It should be replaced
-  with `PyJWT`.
+- **Upload MIME type is validated against magic bytes** for PDF and DOCX; `text/plain` has no universal signature so it relies on the declared content type. The extension written to disk is chosen from a server-side map so a hostile filename cannot escape the upload directory.
 - **Files are stored on local disk**, which does not survive multiple instances. `storage_path`
   is the single column that changes if this moves to S3 with presigned URLs.
 - **The messages endpoint has no pagination** — a very long conversation returns in full.
@@ -376,8 +372,7 @@ stack would convert every claim in §6 from "I checked this once" into something
 The hydration bug found while polishing is the argument: it had been latent for three steps,
 it was invisible in review, and a browser found it in seconds.
 
-After that, in order: replacing `python-jose` with `PyJWT`, sniffing magic bytes on upload
-instead of trusting the client's header, and paginating the messages endpoint.
+After that, in order: sniffing magic bytes on upload instead of trusting the client's header, and paginating the messages endpoint.
 
 **What part took the longest?**
 

@@ -23,6 +23,13 @@ EXTENSION_BY_MIME = {
     "text/plain": ".txt",
 }
 
+# Magic bytes for types where the signature is reliable.
+# text/plain has no universal magic bytes so it is omitted.
+MAGIC_BY_MIME: dict[str, bytes] = {
+    "application/pdf": b"%PDF",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": b"PK\x03\x04",
+}
+
 CHUNK_SIZE = 1024 * 1024  # 1 MiB
 
 
@@ -67,6 +74,19 @@ async def upload_document(
                 "Allowed: PDF, DOCX, TXT"
             ),
         )
+
+    # Validate magic bytes for types that have a reliable signature.
+    # text/plain has no universal magic bytes so it is skipped.
+    expected_magic = MAGIC_BY_MIME.get(file.content_type or "")
+    if expected_magic:
+        header = await file.read(len(expected_magic))
+        if not header.startswith(expected_magic):
+            raise AppError(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="FILE_TYPE_MISMATCH",
+                detail="File content does not match the declared file type.",
+            )
+        await file.seek(0)
 
     upload_dir = settings.upload_path
     upload_dir.mkdir(parents=True, exist_ok=True)

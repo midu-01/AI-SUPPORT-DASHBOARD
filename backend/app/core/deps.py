@@ -1,7 +1,7 @@
 from typing import AsyncGenerator
 
 from fastapi import Cookie, Depends, Header, status
-from jose import JWTError
+from jwt.exceptions import InvalidTokenError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
@@ -34,7 +34,7 @@ async def get_current_user(
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
-    except JWTError:
+    except InvalidTokenError:
         raise credentials_exception
 
     user_repo = UserRepository(db)

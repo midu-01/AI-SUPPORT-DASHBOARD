@@ -19,7 +19,7 @@ dependencies = [
     # bcrypt directly, not passlib: passlib 1.7.4 (2020) is unmaintained and
     # crashes against bcrypt >= 4.1, which every fresh install now resolves to.
     "bcrypt>=4.1",
-    "python-jose[cryptography]>=3.3.0",
+    "PyJWT>=2.8.0",
     "python-multipart>=0.0.9",
     # Used directly for non-blocking file writes on upload.
     "anyio>=4.0",
