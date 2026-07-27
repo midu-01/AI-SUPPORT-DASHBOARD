@@ -32,6 +32,7 @@ export interface LoginResponse {
 export interface Conversation {
   id: string;
   user_id: string;
+  org_id: string;
   title: string;
   created_at: string;
   updated_at: string;
@@ -67,6 +68,7 @@ export type DocumentStatus = "uploaded" | "processing" | "indexed" | "failed";
 export interface Document {
   id: string;
   user_id: string;
+  org_id: string;
   filename: string;
   original_filename: string;
   mime_type: string;
@@ -76,10 +78,34 @@ export interface Document {
   uploaded_at: string;
 }
 
+// ── Organisations ────────────────────────────────────────────────────────────
+
+export interface Organization {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export type OrgRole = "member" | "admin";
+
+export interface Membership {
+  user_id: string;
+  org_id: string;
+  role: OrgRole;
+  joined_at: string;
+}
+
+/** 201 response from POST /organizations */
+export interface OrganizationCreated {
+  organization: Organization;
+  membership: Membership;
+}
+
 // ── Dashboard ────────────────────────────────────────────────────────────────
 
 export interface DashboardSummary {
   user: User;
+  current_org: Organization;
   total_conversations: number;
   total_documents: number;
   total_messages: number;
@@ -102,6 +128,9 @@ export type ApiErrorCode =
   | "EMAIL_ALREADY_REGISTERED"
   | "CONVERSATION_NOT_FOUND"
   | "DOCUMENT_NOT_FOUND"
+  | "ORGANIZATION_NOT_FOUND"
+  | "ALREADY_MEMBER"
+  | "ORG_REQUIRED"
   | "FILE_TYPE_NOT_ALLOWED"
   | "FILE_TOO_LARGE"
   | "FILE_EMPTY"

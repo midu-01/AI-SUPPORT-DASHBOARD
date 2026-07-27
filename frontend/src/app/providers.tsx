@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
 import { ApiError } from "@/lib/api-client";
+import { OrgProvider } from "@/lib/org-context";
 
 /**
  * React Query provider — the app's only global state container.
@@ -14,6 +15,10 @@ import { ApiError } from "@/lib/api-client";
  * would add a store whose entire job is re-implementing them by hand. What is
  * left is genuinely local — an open dialog, a search input — and that is
  * `useState`.
+ *
+ * `OrgProvider` is nested inside `QueryClientProvider` because it uses
+ * `useQuery` internally to fetch the org list.  The order matters: a provider
+ * that calls a hook from a context it wraps would throw.
  */
 export function Providers({ children }: { children: ReactNode }) {
   // Held in state, never at module scope. A module-level client is created once
@@ -44,6 +49,8 @@ export function Providers({ children }: { children: ReactNode }) {
   );
 
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <OrgProvider>{children}</OrgProvider>
+    </QueryClientProvider>
   );
 }

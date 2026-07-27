@@ -8,14 +8,18 @@ import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-client";
 import type { User } from "@/types/api";
 import { MobileNav } from "./mobile-nav";
+import { OrgSwitcher } from "./org-switcher";
 
 /**
- * Top bar: who is signed in, how to stop being signed in, and — below `md` —
- * the hamburger that opens the navigation drawer.
+ * Top bar: who is signed in, the active-org switcher, and sign-out.
  *
  * `user` arrives as a prop from the layout's Server Component rather than being
  * fetched here, so the name is present in the first HTML response instead of
  * popping in after a client round-trip.
+ *
+ * `OrgSwitcher` is a client component that reads from `OrgContext` (populated
+ * by `OrgProvider` in `providers.tsx`).  It sits between the user info and the
+ * sign-out button so the active org is always visible without scrolling.
  */
 export function Topbar({ user }: { user: User }) {
   const router = useRouter();
@@ -48,6 +52,9 @@ export function Topbar({ user }: { user: User }) {
           <p className="truncate text-xs text-slate-500">{user.email}</p>
         </div>
       </div>
+
+      {/* Org switcher sits in the centre of the bar, between user info and sign-out */}
+      <OrgSwitcher />
 
       <Button
         variant="secondary"
