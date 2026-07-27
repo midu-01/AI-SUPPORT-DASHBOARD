@@ -2,16 +2,18 @@
 
 ## 1. Project Overview
 
-An AI-ready customer support dashboard: users register and log in, own private
-conversations made up of messages, upload documents (PDF / DOCX / TXT) whose metadata is
-stored in PostgreSQL, and search across their conversations by title *or* message text.
+An AI-ready customer support dashboard: users register and log in, belong to one or more
+organisations, own private conversations made up of messages, upload documents (PDF / DOCX /
+TXT) whose metadata is stored in PostgreSQL, and search across their conversations by title
+*or* message text. Every conversation and document is scoped to the user's currently selected
+organisation; switching organisations changes every view without logging out.
 
-**Current state:** the backend is complete and covered by 42 passing tests. The Next.js
-frontend is **feature-complete against the brief**: registration, login, logout, the route
-guard, the authenticated shell, the dashboard, conversation CRUD with search and message
-threads, and document upload all work end to end against the real API. What is *not* there
-is automated frontend tests and an upload progress bar; §6 says so plainly rather than
-letting a screenshot imply otherwise.
+**Current state:** the backend is complete and covered by **61 passing tests**. The Next.js
+frontend is **feature-complete against the updated brief**: registration, login, logout, the
+route guard, the authenticated shell, the dashboard, conversation CRUD with search and message
+threads, document upload, organisation creation, and organisation switching all work end to end
+against the real API. What is *not* there is automated frontend tests and an upload progress
+bar; §6 says so plainly rather than letting a screenshot imply otherwise.
 
 "AI-ready" is interpreted as a requirement on the *data model*, not on behaviour. No LLM is
 called anywhere. Instead `messages.role` (`user` / `assistant`) and `documents.status`
@@ -53,11 +55,13 @@ to render. Validation errors add a flattened `errors: [{field, message}]` array 
 map problems onto inputs. Unhandled exceptions log the traceback and return a generic 500,
 because internal messages leak file paths and queries.
 
-**Ownership is enforced in two independent places.** Single-resource routes check the owner
-after loading; list and dashboard queries filter by `user_id` inside the repository. Both are
-tested separately, because removing either one does not fail the other's tests. Cross-user
-access returns **404, not 403** — a 403 confirms the resource exists, which lets someone
-enumerate valid IDs without ever reading one.
+**Ownership is enforced in two independent places, and now covers org membership as well.**
+Single-resource routes call `_check_ownership(conversation, current_user, active_org)`, which
+checks both `user_id` and `org_id` together. List and dashboard queries filter by both inside
+the repository. Both layers are tested independently (`tests/test_ownership.py`) because
+removing either one does not fail the other's tests. Cross-user and cross-org access both
+return **404, not 403** — a 403 confirms the resource exists, which lets someone enumerate
+valid IDs without ever reading one.
 
 **Migrations are the single source of schema truth**, including in tests: the suite builds the
 test database by running the real migration rather than `create_all`, so a migration that
@@ -390,29 +394,40 @@ assumption.
 
 ### What changed
 
-The brief was extended to require that every conversation and document belongs to exactly one
-organization, that a user may belong to multiple organizations, and that users can switch
-organizations without logging out. All views — dashboard, conversations, documents, search —
-must be scoped to the currently selected organization.
+After the original submission, the brief was extended with a multi-organisation requirement:
+every conversation and document must belong to exactly one organisation, a user may belong to
+multiple organisations, and users must be able to switch organisations without logging out.
+All views — dashboard, conversations, documents, search — must be scoped to the currently
+selected organisation.
+
+This touched every layer of the stack. The changes are described below in the order I made
+them, which is also the order that makes the reasoning easiest to follow.
+
+---
 
 ### Parts of the system affected
 
-| Layer | Change |
+| Layer | What changed |
 |---|---|
-| Database | Two new tables; two new FK columns |
+| Database | 2 new tables, 2 new FK columns, 2 new composite indexes |
 | Backend models | `Organization`, `UserOrganization`; `org_id` on `Conversation` and `Document` |
-| Backend repositories | New `OrganizationRepository`; all existing list/create queries gain an `org_id` filter |
-| Backend API | New `/api/v1/organizations` router; `get_active_org` dependency used by all scoped routes |
-| Backend deps | `get_active_org` reads `X-Org-ID` header, verifies membership, returns the `Organization` |
-| Frontend | Org switcher component; `X-Org-ID` sent on every API call |
+| Backend repositories | New `OrganizationRepository`; all list/create queries gain `org_id` filter |
+| Backend API | New `/api/v1/organizations` router; `get_active_org` dependency on all scoped routes |
+| Backend tests | 19 new tests in `test_organizations.py`; 6 new cross-org tests in `test_ownership.py`; all existing fixtures updated |
+| Frontend types | `Organization`, `Membership`, `OrganizationCreated` added; `Conversation`, `Document`, `DashboardSummary` updated |
+| Frontend state | `OrgContext` + `OrgProvider` — active org stored in React context, `localStorage`, and a plain cookie |
+| Frontend API layer | `useOrgFetch` hook injects `X-Org-ID` on client calls; `serverApiFetch` reads the cookie and forwards it on server calls |
+| Frontend UI | `OrgSwitcher` dropdown + `CreateOrgDialog` modal in the topbar |
+
+---
 
 ### Database changes
 
 **New tables:**
 
-- `organizations` — `id` (UUID PK), `name` (VARCHAR 255), `created_at`
-- `user_organizations` — composite PK `(user_id, org_id)`, `role` (VARCHAR + CHECK: `member`
-  or `admin`), `joined_at`; both FKs cascade on delete
+- `organizations` — `id` (UUID PK), `name` (VARCHAR 255 NOT NULL), `created_at`
+- `user_organizations` — composite PK `(user_id, org_id)`, `role` (VARCHAR + CHECK:
+  `member` or `admin`), `joined_at`; both FKs cascade on delete
 
 **New columns:**
 
@@ -422,12 +437,15 @@ must be scoped to the currently selected organization.
 
 **Index changes:**
 
-- `ix_conversations_user_updated` replaced by `ix_conversations_org_user_updated` on
-  `(org_id, user_id, updated_at)` — `org_id` leads because every list query now carries it
-- `ix_documents_user_id` replaced by `ix_documents_org_user` on `(org_id, user_id)`
+- `ix_conversations_user_updated` → `ix_conversations_org_user_updated` on
+  `(org_id, user_id, updated_at)`. `org_id` leads because it is the coarser filter and
+  every list query now carries it.
+- `ix_documents_user_id` → `ix_documents_org_user` on `(org_id, user_id)`.
 
-The migration (`a1b2c3d4e5f6`) is fully reversible; `downgrade()` drops indexes, FK
+The migration (`a1b2c3d4e5f6`) is fully reversible. `downgrade()` drops indexes, FK
 constraints, and columns in the correct reverse order and restores the original indexes.
+
+---
 
 ### Key design decisions
 
@@ -435,28 +453,32 @@ constraints, and columns in the correct reverse order and restores the original 
 
 | | JWT claim | Separate cookie | **`X-Org-ID` header (chosen)** |
 |---|---|---|---|
-| Org switch without re-login | ❌ needs new token | ✅ | ✅ |
+| Switch without re-login | ❌ needs new token | ✅ | ✅ |
 | Stateless server | ✅ | ✅ | ✅ |
 | Explicit in every request | ✅ | ❌ implicit | ✅ |
 | SSR-friendly | ❌ re-issue on switch | Awkward | ✅ set in `fetch` options |
-| CSRF risk | None | Needs `SameSite` | None — custom headers are same-origin only |
+| CSRF risk | None | Needs `SameSite` | None — same-origin policy blocks custom headers |
 
 A JWT claim would require re-issuing the token on every org switch, coupling identity and
-workspace into the same credential. A separate cookie is sent automatically by the browser,
-which makes it invisible to `fetch` calls that do not explicitly forward it, and it is
-awkward to read in Next.js Server Components. The header is explicit, stateless, easy to
-test with `curl` or Postman, and carries no CSRF risk because the same-origin policy blocks
-custom headers from cross-origin requests.
+workspace into the same credential and making switching feel like a partial re-login. A
+separate cookie is sent automatically by the browser, which makes it invisible to `fetch`
+calls that do not explicitly forward it, and it is awkward to read in Next.js Server
+Components without going through the `cookies()` API on every request.
 
-**`get_active_org` dependency** reads `X-Org-ID`, verifies that the authenticated user is a
-member of that org, and returns the `Organization` row. Membership is checked on every
-request — a user removed from an org between requests is rejected on the next call. The
-response is always **404, never 403** — a 403 would confirm the org exists to a non-member,
-the same information-leak avoided on conversations.
+The header is explicit, stateless, easy to test with `curl` or Postman, and carries no CSRF
+risk because the same-origin policy blocks custom headers from cross-origin requests.
+
+**`get_active_org` dependency** (`app/core/deps.py`) reads `X-Org-ID`, verifies that the
+authenticated user is a member of that org, and returns the `Organization` row. Membership
+is checked on every request — a user removed from an org between requests is rejected on the
+next call. The response is always **404, never 403** — a 403 would confirm the org exists to
+a non-member, the same information-leak avoided on conversations.
+
+---
 
 **Decision 5 — Org membership model: join table with role column**
 
-`user_organizations` is a standard many-to-many join table with an optional `role` column
+`user_organizations` is a standard many-to-many join table with a `role` column
 (`member` / `admin`). The alternative — a flat list of org IDs on the user — cannot express
 roles without a parallel structure. The join table covers both the simple case (membership
 check) and the richer case (admin-only invite) without a schema change.
@@ -464,21 +486,76 @@ check) and the richer case (admin-only invite) without a schema change.
 Role is stored as `VARCHAR + CHECK` with `create_constraint=True`, consistent with the
 existing enum pattern in the codebase (see §4 — the missing-constraint bug).
 
-**Org creation atomicity:** `OrganizationRepository.create` uses `flush()` to obtain the
+**Org creation is atomic.** `OrganizationRepository.create` uses `flush()` to obtain the
 org's UUID before inserting the membership row, then commits both in a single transaction.
 The org never exists without at least one admin.
+
+---
+
+**Decision 6 — Frontend org state: React context + localStorage + plain cookie**
+
+The active org is UI state, not server state — the server does not know which org is
+"active"; it only knows which org the request is scoped to via `X-Org-ID`. Three storage
+layers work together:
+
+| Layer | Purpose |
+|---|---|
+| React context (`OrgContext`) | In-memory; drives the `OrgSwitcher` UI and `useOrgFetch` |
+| `localStorage` | Survives page refresh; restored on mount |
+| Plain (non-httpOnly) cookie | Readable by Next.js Server Components via `serverApiFetch` |
+
+The cookie is the key insight. `localStorage` is not readable on the server, so Server
+Components (the dashboard page, the conversation detail page) would have no way to know
+which org to scope their fetches to. A plain cookie is forwarded with every request and
+readable via `cookies()` in `serverApiFetch`, which then sets `X-Org-ID` on the outgoing
+fetch. The cookie carries no secret — the backend validates membership on every request
+regardless.
+
+**`useOrgFetch` hook** (`src/hooks/use-org-fetch.ts`) wraps `apiFetch` and closes over
+`orgId` from context, injecting `X-Org-ID` on every call. This keeps `apiFetch` as a plain
+async function with no React dependency, and avoids threading `orgId` as an argument through
+every call site. When the user switches orgs, `OrgProvider` clears the entire React Query
+cache — every query re-fetches on the next render with the new org id.
+
+---
+
+### What the test suite covers
+
+The test count grew from 42 to **61**. New coverage:
+
+- `tests/test_organizations.py` (19 tests) — create, list, add member, duplicate guard,
+  admin-only enforcement, `get_active_org` dependency (missing header → 400, non-member → 404,
+  newly-invited member can immediately use the org)
+- `tests/test_ownership.py` — 5 new cross-org tests: same user, two orgs — org-A data is
+  invisible from org-B context; non-member org returns 404; missing header returns 400;
+  a "protection is real" test that switches back to org-A and confirms the conversation is
+  visible again (proving the 404 was caused by the org check, not a bug)
+- All existing `auth_client` fixtures in `test_conversations.py`, `test_documents.py`, and
+  `test_messages.py` updated to create an org and set `X-Org-ID` — the existing tests pass
+  unchanged because the header is now always present
+
+Every new protection test is verified to fail when the protection is removed. A test that
+passes for the wrong reason is worse than no test.
+
+---
 
 ### Deferred items
 
 **`org_id` NOT NULL enforcement.** The migration adds `org_id` as nullable on both
-`conversations` and `documents`. Rows created before organizations existed have no org
-assignment. The production path is: (1) add nullable column — done; (2) backfill existing
-rows to a default org; (3) `ALTER COLUMN SET NOT NULL`. Step 3 is deferred because the
-assessment database has no pre-existing rows that need backfilling, and forcing NOT NULL in
-the migration would break any deployment that runs the migration before the backfill. The
-models declare `nullable=False` to reflect the intended steady-state; the migration is the
-honest description of what the database actually allows today.
+`conversations` and `documents`. The production path is: (1) add nullable column — done;
+(2) backfill existing rows to a default org; (3) `ALTER COLUMN SET NOT NULL`. Step 3 is
+deferred because the assessment database has no pre-existing rows that need backfilling, and
+forcing NOT NULL in the migration would break any deployment that runs the migration before
+the backfill. The models declare `nullable=False` to reflect the intended steady-state; the
+migration is the honest description of what the database actually allows today.
 
-**Member invitation UI.** `POST /api/v1/organizations/{org_id}/members` is implemented and
+**Member management UI.** `POST /api/v1/organizations/{org_id}/members` is implemented and
 admin-gated on the backend. The frontend exposes org creation and switching but not a member
-management screen. This is documented in `ASSUMPTIONS.md`.
+invitation screen. The backend endpoint is fully functional and testable via Postman or
+`curl`; the UI is deferred because the brief does not require it and the time was better
+spent on correctness and test coverage.
+
+**Org deletion.** Not implemented. Deleting an org would cascade-delete all its
+conversations and documents — a destructive operation that warrants a deliberate design
+decision (soft delete? transfer ownership? confirmation with typed org name?) rather than a
+quick implementation. The backend has no `DELETE /organizations/{id}` endpoint.
