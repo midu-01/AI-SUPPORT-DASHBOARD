@@ -300,7 +300,12 @@ export function DocumentManager() {
                 return (
                   <li
                     key={doc.id}
-                    className="grid items-center gap-x-3 gap-y-1 px-5 py-3 transition-colors hover:bg-slate-50 md:grid-cols-[1fr_80px_80px_100px_80px_40px]"
+                    // Two shapes from one markup. Below `md` it is a two-column
+                    // grid — filename and delete button on the first row, the
+                    // metadata wrapped onto a second. At `md` the wrapper below
+                    // switches to `display: contents`, which dissolves it so its
+                    // children become cells of the table row itself.
+                    className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 px-5 py-3 transition-colors hover:bg-slate-50 md:grid-cols-[1fr_80px_80px_100px_80px_40px]"
                   >
                     {/* Name */}
                     <div className="flex min-w-0 items-center gap-2">
@@ -313,39 +318,44 @@ export function DocumentManager() {
                       </span>
                     </div>
 
-                    {/* Type badge */}
-                    <span className="inline-flex w-fit items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                      {ext}
-                    </span>
-
-                    {/* Size */}
-                    <span className="text-xs text-slate-500">
-                      {formatBytes(doc.size_bytes)}
-                    </span>
-
-                    {/* Date */}
-                    <time
-                      dateTime={doc.uploaded_at}
-                      className="text-xs text-slate-500"
-                    >
-                      {formatDate(doc.uploaded_at)}
-                    </time>
-
-                    {/* Status */}
-                    <StatusBadge status={doc.status} />
-
-                    {/* Delete */}
+                    {/* Delete. Placed explicitly rather than auto-flowed, so on
+                        mobile it stays on the filename's row instead of being
+                        pushed down with the metadata. */}
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setPendingDeleteId(doc.id)}
                       aria-label={`Delete "${doc.original_filename}"`}
+                      className="col-start-2 row-start-1 justify-self-end md:col-start-6"
                     >
                       <Trash2
                         className="size-4 text-slate-400"
                         aria-hidden="true"
                       />
                     </Button>
+
+                    <div className="col-span-2 flex flex-wrap items-center gap-x-2 gap-y-1 md:contents">
+                      {/* Type badge */}
+                      <span className="inline-flex w-fit items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                        {ext}
+                      </span>
+
+                      {/* Size */}
+                      <span className="text-xs text-slate-500">
+                        {formatBytes(doc.size_bytes)}
+                      </span>
+
+                      {/* Date */}
+                      <time
+                        dateTime={doc.uploaded_at}
+                        className="text-xs text-slate-500"
+                      >
+                        {formatDate(doc.uploaded_at)}
+                      </time>
+
+                      {/* Status */}
+                      <StatusBadge status={doc.status} />
+                    </div>
                   </li>
                 );
               })}

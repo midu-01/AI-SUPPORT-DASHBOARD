@@ -7,9 +7,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-client";
 import type { User } from "@/types/api";
+import { MobileNav } from "./mobile-nav";
 
 /**
- * Top bar: who is signed in, and how to stop being signed in.
+ * Top bar: who is signed in, how to stop being signed in, and — below `md` —
+ * the hamburger that opens the navigation drawer.
  *
  * `user` arrives as a prop from the layout's Server Component rather than being
  * fetched here, so the name is present in the first HTML response instead of
@@ -36,12 +38,15 @@ export function Topbar({ user }: { user: User }) {
   });
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4 md:px-6">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-slate-900">
-          {user.full_name}
-        </p>
-        <p className="truncate text-xs text-slate-500">{user.email}</p>
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 md:px-6">
+      <div className="flex min-w-0 items-center gap-2">
+        <MobileNav />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-slate-900">
+            {user.full_name}
+          </p>
+          <p className="truncate text-xs text-slate-500">{user.email}</p>
+        </div>
       </div>
 
       <Button
@@ -49,9 +54,16 @@ export function Topbar({ user }: { user: User }) {
         size="sm"
         onClick={() => logout.mutate()}
         loading={logout.isPending}
+        // At 375px "Sign out" alongside a long name and the hamburger is a
+        // three-way fight for the same row; the icon carries it and the label
+        // returns at `sm`.
+        className="shrink-0"
       >
         <LogOut className="size-3.5" aria-hidden="true" />
-        {logout.isPending ? "Signing out…" : "Sign out"}
+        <span className="hidden sm:inline">
+          {logout.isPending ? "Signing out…" : "Sign out"}
+        </span>
+        <span className="sr-only sm:hidden">Sign out</span>
       </Button>
     </header>
   );

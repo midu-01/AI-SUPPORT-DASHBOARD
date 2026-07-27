@@ -26,10 +26,10 @@ read. `documents.storage_path` is the one place that would change if this moved 
 | Auth | Email + password (bcrypt), JWT delivered in an `httpOnly` cookie. No refresh token, email verification, password reset, or OAuth. |
 | Deletes | Hard delete with `ON DELETE CASCADE`. No soft delete — there is no undo or audit requirement here, and it would add a `deleted_at` filter to every query. |
 | Search | Matches conversation titles and message text, and returns the matching conversations. |
-| Uploads | PDF, DOCX, TXT only, 10 MB maximum, enforced on the server while streaming. The upload UI is not built yet; when it lands it will pre-check type and size for faster feedback, but the server validates independently and never trusts the client. |
+| Uploads | PDF, DOCX, TXT only, 10 MB maximum, enforced on the server while streaming. The UI pre-checks type and size for faster feedback, but that is a courtesy — the server validates independently and never trusts the client. |
 | Document status | Always `uploaded` — there is no background processing pipeline. |
 | Ownership errors | Requesting another user's resource returns `404`, not `403`. A `403` would confirm that the resource exists. |
-| Timestamps | Stored in UTC; the frontend formats them for display. No timezone setting. |
+| Timestamps | Stored in UTC; the frontend formats them for display with a pinned `en-GB` locale, so server and client render identically. No timezone setting. |
 | UI | Light mode only, English only, no dark mode and no i18n. |
 | Database | PostgreSQL running locally (see README). Alembic owns every schema change. |
 

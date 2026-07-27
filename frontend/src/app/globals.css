@@ -6,8 +6,11 @@
   is designed or checked against renders half the UI unreadable the moment a
   reviewer's OS is set to dark. An absent feature beats a broken one.
 
-  Semantic tokens only. Everything else uses Tailwind's default slate scale, so
-  there is one palette in play rather than two competing ones.
+  Semantic tokens only. Neutrals are Tailwind's slate scale throughout, so there
+  is one grey in play rather than two competing ones. The single exception is
+  document status, where amber ("processing") and emerald ("indexed") carry
+  meaning slate cannot — and `StatusBadge` spells the status out in text as
+  well, so the colour is never the only signal.
 */
 @theme inline {
   --color-canvas: #f8fafc; /* slate-50   — app background  */

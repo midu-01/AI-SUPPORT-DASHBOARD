@@ -7,11 +7,11 @@ conversations made up of messages, upload documents (PDF / DOCX / TXT) whose met
 stored in PostgreSQL, and search across their conversations by title *or* message text.
 
 **Current state:** the backend is complete and covered by 42 passing tests. The Next.js
-frontend is **partially built**: registration, login, logout, the route guard, and the
-authenticated application shell all work end to end against the real API. The dashboard,
-conversation, and document *pages* are still placeholders. §6 says which is which — the
-distinction matters more than a percentage, and I would rather state it plainly than let a
-screenshot imply the rest is finished.
+frontend is **feature-complete against the brief**: registration, login, logout, the route
+guard, the authenticated shell, the dashboard, conversation CRUD with search and message
+threads, and document upload all work end to end against the real API. What is *not* there
+is automated frontend tests and an upload progress bar; §6 says so plainly rather than
+letting a screenshot imply otherwise.
 
 "AI-ready" is interpreted as a requirement on the *data model*, not on behaviour. No LLM is
 called anywhere. Instead `messages.role` (`user` / `assistant`) and `documents.status`
@@ -27,7 +27,7 @@ Stack: FastAPI, SQLAlchemy 2.0 async (`asyncpg`), Alembic, PostgreSQL 18, Pydant
 ```
 ai-support-dashboard/
 ├── backend/          FastAPI — Router → Repository
-├── frontend/         Next.js App Router — auth + shell built, feature pages pending
+├── frontend/         Next.js App Router — auth, shell, and all feature pages
 └── docs/             ER diagram, API reference
 ```
 
@@ -71,18 +71,35 @@ live at `/login` and `/`, not `/auth/login`.
 
 Server Components are the default and fetch on the server, so the signed-in user's name is in
 the first HTML response rather than arriving after a client round-trip. `"use client"` is
-applied only where something is genuinely interactive — the two forms, the nav (it needs
-`usePathname`), and the sign-out button. React Query handles server-state caching and
-invalidation instead of Redux or Zustand; almost all state here is server state, so a global
-store would add boilerplate without solving a problem.
+applied only where something is genuinely interactive: the two auth forms, the nav (it needs
+`usePathname`), the sign-out button, the three feature components, and the error boundaries
+(React's are class-based and cannot run on the server). **The dashboard has no `"use client"`
+anywhere beneath it** — nothing on it is interactive beyond links, so none of it ships as
+JavaScript. Where a page is interactive, the server still fetches first and passes the result
+in as `initialData`, so React Query hydrates from real data instead of flashing a skeleton.
+
+React Query handles server-state caching and invalidation instead of Redux or Zustand; almost
+all state here is server state, so a global store would add boilerplate without solving a
+problem. Rename and both deletes are optimistic, with the previous cache snapshot restored in
+`onError`.
 
 **No component library.** The UI is a small set of hand-written Tailwind components
-(`button`, `card`, `text-field`, `form-error`). shadcn/ui would have reached a polished look
-faster, but it copies a dozen-plus Radix wrappers into the repository, and the brief asks that
-I understand everything I submit. The accessibility details that a library would have supplied
-are therefore explicit: `useId` ties every label to its input, `aria-invalid` and
-`aria-describedby` connect a validation message to the field that caused it, and `role="alert"`
-announces errors when they appear.
+(`button`, `card`, `text-field`, `form-error`, `badge`, `skeleton`, `confirm-dialog`).
+shadcn/ui would have reached a polished look faster, but it copies a dozen-plus Radix wrappers
+into the repository, and the brief asks that I understand everything I submit. The
+accessibility details that a library would have supplied are therefore explicit: `useId` ties
+every label to its input, `aria-invalid` and `aria-describedby` connect a validation message
+to the field that caused it, and `role="alert"` announces errors when they appear.
+
+The component that most justified pulling in Radix was the modal, and the reason it did not:
+**the native `<dialog>` element already does the hard part.** `showModal()` supplies focus
+trapping, Escape-to-close, `aria-modal`, background inertness, and a `::backdrop` from the
+platform. Both modals in the app — the confirmation dialog and the mobile navigation drawer —
+are built on it, and what is left to hand-write is syncing `open` with React state. An earlier
+pass had three hand-rolled copies of the confirmation dialog, all three with
+`aria-hidden="true"` on the backdrop element that *contained* the dialog, which hides the
+whole modal from screen readers; consolidating onto `<dialog>` removed the duplication and the
+bug together.
 
 **One error path.** The backend's `{ detail, code }` envelope is unwrapped once, in
 `lib/api-client.ts`, into an `ApiError` carrying `status`, `code`, and the flattened
@@ -279,17 +296,18 @@ run twice in a row unchanged, and the fix is what let me verify everything else 
 
 **Largest gap first:**
 
-- **Two frontend feature pages are not built.** Working end to end today: register, login,
-  logout, the route guard, the authenticated shell, and the **dashboard** — stat row, account
-  details, and the recent conversation and document lists, all server-rendered from
-  `/dashboard/summary`. Still placeholders: `/conversations` and `/documents`, which render a
-  heading and a note rather than their data, so conversation CRUD, message threads, search, and
-  upload are reachable only through the API. The endpoints behind all of them are complete and
-  documented in `docs/api.md`.
 - **The frontend has no automated tests.** The backend has 42; the UI was verified by driving
-  the real flow against a running API — signed-out redirect, valid-cookie render, forged-cookie
-  rejection, and the already-signed-in bounce off `/login`. That is a check I ran, not a check
-  that runs. A regression here would not fail anything.
+  the real flow against a running API and a headless browser — signed-out redirect,
+  valid-cookie render, forged-cookie rejection, the already-signed-in bounce off `/login`,
+  no horizontal overflow at 375/768/1440 px, keyboard operation of the modals, accessible
+  names on every control, and a clean console on all four signed-in routes. **That is a check
+  I ran, not a check that runs.** A regression here would not fail anything, and this is the
+  project's largest remaining gap.
+- **No upload progress bar.** `fetch` cannot report request-body progress; a determinate bar
+  needs `XMLHttpRequest` or a streaming request body. The upload zone shows an indeterminate
+  "Uploading…" state instead of a percentage that would have to be invented.
+- **Message threads are not paginated or virtualised** on the client either — the endpoint
+  returns the whole thread (below) and the UI renders all of it.
 
 Frontend limitations and shortcuts:
 
@@ -324,7 +342,12 @@ Backend limitations and shortcuts:
 - **No rate limiting** anywhere, so login is open to brute force.
 - **Search is a sequential scan** (see Decision 2).
 - **No CI pipeline** — tests are run locally.
-- **Timestamps are UTC only**, formatted client-side, with no per-user timezone.
+- **Timestamps are UTC only**, with no per-user timezone. The display locale is pinned to
+  `en-GB` in `lib/utils.ts` rather than following the browser: "runtime default" resolves to
+  Node's locale on the server and the browser's on the client, and when those disagree the
+  same instant server-renders one way and hydrates another — which React reports as a
+  hydration mismatch. Determinism was worth more here than a locale the API has no notion of,
+  but a real product would send the user's preference rather than choosing for them.
 
 ---
 
@@ -342,12 +365,14 @@ trusting the code that generated it.
 
 **If you had one additional day, what would you improve?**
 
-Finish the frontend's feature pages. The shell and the auth flow are in place, so the remaining
-work is the dashboard summary, conversation CRUD with search, and the upload UI — nothing else
-would improve the result as much, because those are the features the brief actually names.
+Frontend tests. The UI is now the only part of the project with no automated coverage, and
+the checks I ran by hand — the auth redirects, the modals' keyboard behaviour, the breakpoint
+sweep — are exactly the kind that quietly stop being true. Playwright against the running
+stack would convert every claim in §6 from "I checked this once" into something CI enforces.
+The hydration bug found while polishing is the argument: it had been latent for three steps,
+it was invisible in review, and a browser found it in seconds.
 
-After that, in order: a handful of frontend tests (the UI is the only part of the project with
-no automated coverage), replacing `python-jose` with `PyJWT`, sniffing magic bytes on upload
+After that, in order: replacing `python-jose` with `PyJWT`, sniffing magic bytes on upload
 instead of trusting the client's header, and paginating the messages endpoint.
 
 **What part took the longest?**

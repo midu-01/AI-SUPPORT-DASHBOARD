@@ -24,14 +24,21 @@ export function formatBytes(bytes: number): string {
 }
 
 /**
- * Render a UTC timestamp from the API in the user's locale.
+ * Render a UTC timestamp from the API as a short date.
  *
  * Timestamps are stored UTC-only (ASSUMPTIONS.md); this is the single place
  * they become local, so there is one thing to change if per-user timezones are
  * ever added.
+ *
+ * The locale is pinned rather than left as `undefined`. "Runtime default" means
+ * Node's locale on the server and the browser's on the client, and when those
+ * disagree the same timestamp server-renders as "Jul 27, 2026" and hydrates as
+ * "27 Jul 2026" — which React reports as a hydration mismatch (error #418) and
+ * repairs by re-rendering the subtree on the client. Deterministic output
+ * matters more here than honouring a per-user locale the API has no notion of.
  */
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString("en-GB", {
     year: "numeric",
     month: "short",
     day: "numeric",

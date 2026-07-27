@@ -184,7 +184,9 @@ export function ConversationDetail({
               type="submit"
               aria-label="Save title"
             >
-              <Check className="size-4 text-green-600" aria-hidden="true" />
+              {/* emerald, not green: `StatusBadge` already established emerald
+                  as the affirmative colour, and two greens is one too many. */}
+              <Check className="size-4 text-emerald-600" aria-hidden="true" />
             </Button>
             <Button
               variant="ghost"
