@@ -8,6 +8,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apiFetch } from "@/lib/api-client";
@@ -94,7 +95,7 @@ export function ConversationList() {
     },
   });
 
-  // ── Confirm dialog (native <dialog>) ────────────────────────────────────
+  // ── Confirm dialog ──────────────────────────────────────────────────────
 
   function confirmDelete(id: string) {
     setPendingDeleteId(id);
@@ -109,6 +110,13 @@ export function ConversationList() {
       remove.mutate(pendingDeleteId);
     }
   }
+
+  // Named in the confirmation so the user can see *which* conversation is about
+  // to go. Falls back to the generic wording if the row has already left the
+  // cache (the optimistic delete removes it before the request settles).
+  const pendingDeleteTitle = data?.items.find(
+    (c) => c.id === pendingDeleteId,
+  )?.title;
 
   // ── Pagination helpers ──────────────────────────────────────────────────
 
@@ -260,17 +268,23 @@ export function ConversationList() {
         </div>
       )}
 
-      {/* Delete confirmation dialog */}
-      {pendingDeleteId && (
-        <ConfirmDialog
-          title="Delete conversation?"
-          description="This will permanently delete the conversation and all its messages. This action cannot be undone."
-          confirmLabel="Delete"
-          onConfirm={executeDelete}
-          onCancel={cancelDelete}
-          loading={remove.isPending}
-        />
-      )}
+      {/* Delete confirmation dialog. Rendered unconditionally — the native
+          <dialog> has to be in the tree for `showModal()` to have something to
+          call, so visibility is driven by `open`, not by mounting. */}
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        title="Delete conversation?"
+        description={
+          pendingDeleteTitle
+            ? `This will permanently delete "${pendingDeleteTitle}" and all its messages. This action cannot be undone.`
+            : "This will permanently delete the conversation and all its messages. This action cannot be undone."
+        }
+        confirmLabel="Delete"
+        destructive
+        pending={remove.isPending}
+        onConfirm={executeDelete}
+        onCancel={cancelDelete}
+      />
     </>
   );
 }
@@ -293,64 +307,5 @@ function ConversationListSkeleton() {
         ))}
       </div>
     </Card>
-  );
-}
-
-// ── Confirm dialog ──────────────────────────────────────────────────────────
-
-function ConfirmDialog({
-  title,
-  description,
-  confirmLabel,
-  onConfirm,
-  onCancel,
-  loading,
-}: {
-  title: string;
-  description: string;
-  confirmLabel: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-  loading: boolean;
-}) {
-  return (
-    // Backdrop
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onCancel}
-      aria-hidden="true"
-    >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="confirm-title"
-        aria-describedby="confirm-desc"
-        className="mx-4 w-full max-w-sm rounded-xl border border-border bg-surface p-6 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2
-          id="confirm-title"
-          className="text-base font-semibold text-slate-900"
-        >
-          {title}
-        </h2>
-        <p id="confirm-desc" className="mt-2 text-sm text-slate-600">
-          {description}
-        </p>
-        <div className="mt-5 flex justify-end gap-3">
-          <Button variant="secondary" size="sm" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={onConfirm}
-            loading={loading}
-          >
-            {loading ? "Deleting…" : confirmLabel}
-          </Button>
-        </div>
-      </div>
-    </div>
   );
 }

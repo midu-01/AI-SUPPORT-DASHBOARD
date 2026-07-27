@@ -15,6 +15,7 @@ import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { Card, EmptyState } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { cn, formatBytes, formatDate } from "@/lib/utils";
@@ -165,6 +166,11 @@ export function DocumentManager() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
+
+  // Named in the confirmation so the user can see *which* file is about to go.
+  const pendingDeleteName = documents?.find(
+    (d) => d.id === pendingDeleteId,
+  )?.original_filename;
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -348,53 +354,25 @@ export function DocumentManager() {
         )}
       </div>
 
-      {/* Delete confirmation */}
-      {pendingDeleteId && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => setPendingDeleteId(null)}
-          aria-hidden="true"
-        >
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="delete-doc-title"
-            aria-describedby="delete-doc-desc"
-            className="mx-4 w-full max-w-sm rounded-xl border border-border bg-surface p-6 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2
-              id="delete-doc-title"
-              className="text-base font-semibold text-slate-900"
-            >
-              Delete document?
-            </h2>
-            <p id="delete-doc-desc" className="mt-2 text-sm text-slate-600">
-              This will permanently remove the document and its file. This
-              action cannot be undone.
-            </p>
-            <div className="mt-5 flex justify-end gap-3">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setPendingDeleteId(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => {
-                  if (pendingDeleteId) remove.mutate(pendingDeleteId);
-                }}
-                loading={remove.isPending}
-              >
-                {remove.isPending ? "Deleting…" : "Delete"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete confirmation. Rendered unconditionally — the native <dialog>
+          has to be in the tree for `showModal()` to have something to call, so
+          visibility is driven by `open`, not by mounting. */}
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        title="Delete document?"
+        description={
+          pendingDeleteName
+            ? `This will permanently remove "${pendingDeleteName}" and its file. This action cannot be undone.`
+            : "This will permanently remove the document and its file. This action cannot be undone."
+        }
+        confirmLabel="Delete"
+        destructive
+        pending={remove.isPending}
+        onConfirm={() => {
+          if (pendingDeleteId) remove.mutate(pendingDeleteId);
+        }}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </>
   );
 }

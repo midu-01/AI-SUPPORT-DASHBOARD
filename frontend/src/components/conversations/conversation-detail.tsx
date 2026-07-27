@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, EmptyState } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/api-client";
 import { cn, formatDate } from "@/lib/utils";
@@ -298,50 +299,16 @@ export function ConversationDetail({
       </Card>
 
       {/* Delete confirmation */}
-      {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => setShowDeleteConfirm(false)}
-          aria-hidden="true"
-        >
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="delete-title"
-            aria-describedby="delete-desc"
-            className="mx-4 w-full max-w-sm rounded-xl border border-border bg-surface p-6 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2
-              id="delete-title"
-              className="text-base font-semibold text-slate-900"
-            >
-              Delete conversation?
-            </h2>
-            <p id="delete-desc" className="mt-2 text-sm text-slate-600">
-              This will permanently delete &ldquo;{conversation.title}&rdquo;
-              and all its messages. This action cannot be undone.
-            </p>
-            <div className="mt-5 flex justify-end gap-3">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowDeleteConfirm(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => remove.mutate()}
-                loading={remove.isPending}
-              >
-                {remove.isPending ? "Deleting…" : "Delete"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Delete conversation?"
+        description={`This will permanently delete "${conversation.title}" and all its messages. This action cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+        pending={remove.isPending}
+        onConfirm={() => remove.mutate()}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </>
   );
 }
