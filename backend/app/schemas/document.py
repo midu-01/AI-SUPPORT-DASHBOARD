@@ -8,6 +8,7 @@ from app.models.document import DocumentStatus
 class DocumentRead(BaseModel):
     id: str
     user_id: str
+    org_id: str
     filename: str
     original_filename: str
     mime_type: str

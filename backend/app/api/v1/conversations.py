@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_active_org, get_current_user, get_db
 from app.core.errors import AppError, error_docs
+from app.models.organization import Organization
 from app.models.user import User
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.message_repository import MessageRepository
@@ -21,19 +22,24 @@ NOT_FOUND = error_docs(
     (
         404,
         "CONVERSATION_NOT_FOUND",
-        "Conversation does not exist, or belongs to another user",
+        "Conversation does not exist, or belongs to another user or organisation",
     )
 )
 
 
-def _check_ownership(conversation, current_user: User):
+def _check_ownership(conversation, current_user: User, active_org: Organization):
     """Return 404 regardless — avoids leaking resource existence via 403.
 
-    "Missing" and "belongs to someone else" are deliberately indistinguishable:
-    a 403 would confirm that the id is real, letting an attacker enumerate which
-    conversations exist without ever being able to read one.
+    Checks both user ownership and org membership so that a user who is a member
+    of org A cannot read a conversation that belongs to org B, even if they know
+    the UUID.  Both conditions are tested together: the caller cannot distinguish
+    "wrong user" from "wrong org" from "doesn't exist".
     """
-    if conversation is None or conversation.user_id != current_user.id:
+    if (
+        conversation is None
+        or conversation.user_id != current_user.id
+        or conversation.org_id != active_org.id
+    ):
         raise AppError(
             status_code=status.HTTP_404_NOT_FOUND,
             code="CONVERSATION_NOT_FOUND",
@@ -51,9 +57,12 @@ async def create_conversation(
     payload: ConversationCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_org: Organization = Depends(get_active_org),
 ):
     repo = ConversationRepository(db)
-    return await repo.create(user_id=current_user.id, title=payload.title)
+    return await repo.create(
+        user_id=current_user.id, org_id=active_org.id, title=payload.title
+    )
 
 
 @router.get(
@@ -67,10 +76,11 @@ async def list_conversations(
     size: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_org: Organization = Depends(get_active_org),
 ):
     repo = ConversationRepository(db)
     items, total = await repo.list_by_user(
-        user_id=current_user.id, query=q, page=page, size=size
+        user_id=current_user.id, org_id=active_org.id, query=q, page=page, size=size
     )
     return PaginatedConversations(items=items, total=total, page=page, size=size)
 
@@ -85,10 +95,11 @@ async def get_conversation(
     conversation_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_org: Organization = Depends(get_active_org),
 ):
     repo = ConversationRepository(db)
     conversation = await repo.get_by_id(conversation_id)
-    _check_ownership(conversation, current_user)
+    _check_ownership(conversation, current_user, active_org)
     return conversation
 
 
@@ -103,10 +114,11 @@ async def update_conversation(
     payload: ConversationUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_org: Organization = Depends(get_active_org),
 ):
     repo = ConversationRepository(db)
     conversation = await repo.get_by_id(conversation_id)
-    _check_ownership(conversation, current_user)
+    _check_ownership(conversation, current_user, active_org)
     return await repo.update(conversation, title=payload.title)
 
 
@@ -120,10 +132,11 @@ async def delete_conversation(
     conversation_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_org: Organization = Depends(get_active_org),
 ):
     repo = ConversationRepository(db)
     conversation = await repo.get_by_id(conversation_id)
-    _check_ownership(conversation, current_user)
+    _check_ownership(conversation, current_user, active_org)
     await repo.delete(conversation)
 
 
@@ -139,10 +152,11 @@ async def list_messages(
     conversation_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_org: Organization = Depends(get_active_org),
 ):
     conv_repo = ConversationRepository(db)
     conversation = await conv_repo.get_by_id(conversation_id)
-    _check_ownership(conversation, current_user)
+    _check_ownership(conversation, current_user, active_org)
 
     msg_repo = MessageRepository(db)
     return await msg_repo.list_by_conversation(conversation_id)
@@ -160,10 +174,11 @@ async def create_message(
     payload: MessageCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_org: Organization = Depends(get_active_org),
 ):
     conv_repo = ConversationRepository(db)
     conversation = await conv_repo.get_by_id(conversation_id)
-    _check_ownership(conversation, current_user)
+    _check_ownership(conversation, current_user, active_org)
 
     msg_repo = MessageRepository(db)
     return await msg_repo.create(

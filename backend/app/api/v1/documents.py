@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_active_org, get_current_user, get_db
 from app.core.errors import HTTP_413_TOO_LARGE, AppError, error_docs
+from app.models.organization import Organization
 from app.models.user import User
 from app.repositories.document_repository import DocumentRepository
 from app.schemas.document import DocumentRead
@@ -45,6 +46,7 @@ async def upload_document(
     file: UploadFile,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_org: Organization = Depends(get_active_org),
 ):
     # content_type and filename are both optional in the multipart spec, so a
     # crafted request can leave either unset — reject before dereferencing them.
@@ -109,6 +111,7 @@ async def upload_document(
     repo = DocumentRepository(db)
     return await repo.create(
         user_id=current_user.id,
+        org_id=active_org.id,
         filename=stored_filename,
         original_filename=file.filename,
         mime_type=file.content_type,
@@ -125,9 +128,10 @@ async def upload_document(
 async def list_documents(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_org: Organization = Depends(get_active_org),
 ):
     repo = DocumentRepository(db)
-    return await repo.list_by_user(current_user.id)
+    return await repo.list_by_user(user_id=current_user.id, org_id=active_org.id)
 
 
 @router.delete(
@@ -146,11 +150,19 @@ async def delete_document(
     document_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_org: Organization = Depends(get_active_org),
 ):
     repo = DocumentRepository(db)
     document = await repo.get_by_id(document_id)
-    if document is None or document.user_id != current_user.id:
-        # 404 rather than 403, for the same reason as conversations.
+    # Check user ownership AND org membership together — same 404-not-403 rule
+    # as conversations: the caller cannot distinguish "wrong user", "wrong org",
+    # or "doesn't exist".  Both conditions are enforced independently of the
+    # list query filter (double-enforcement pattern).
+    if (
+        document is None
+        or document.user_id != current_user.id
+        or document.org_id != active_org.id
+    ):
         raise AppError(
             status_code=status.HTTP_404_NOT_FOUND,
             code="DOCUMENT_NOT_FOUND",

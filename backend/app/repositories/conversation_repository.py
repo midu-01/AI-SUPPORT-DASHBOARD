@@ -23,11 +23,19 @@ class ConversationRepository:
     async def list_by_user(
         self,
         user_id: str,
+        org_id: str,
         query: str | None = None,
         page: int = 1,
         size: int = 20,
     ) -> tuple[list[Conversation], int]:
-        base_query = select(Conversation).where(Conversation.user_id == user_id)
+        # Both filters are required: user_id scopes to the owner, org_id scopes
+        # to the active organisation.  The composite index
+        # ix_conversations_org_user_updated (org_id, user_id, updated_at) covers
+        # this query exactly — org_id leads because it is the coarser filter.
+        base_query = select(Conversation).where(
+            Conversation.user_id == user_id,
+            Conversation.org_id == org_id,
+        )
 
         if query and query.strip():
             # Match the conversation title, or the text of any message inside it.
@@ -55,8 +63,8 @@ class ConversationRepository:
         )
         return result.scalars().all(), total
 
-    async def create(self, user_id: str, title: str) -> Conversation:
-        conversation = Conversation(user_id=user_id, title=title)
+    async def create(self, user_id: str, org_id: str, title: str) -> Conversation:
+        conversation = Conversation(user_id=user_id, org_id=org_id, title=title)
         self.db.add(conversation)
         await self.db.commit()
         await self.db.refresh(conversation)
