@@ -1,8 +1,8 @@
 # AI-Ready Customer Support Dashboard
 
-A customer support dashboard: email/password auth, conversation threads with search,
-document upload with metadata, and an activity dashboard. Next.js 16 on the front,
-FastAPI + PostgreSQL behind it.
+A customer support dashboard: email/password auth, multi-organisation support with instant
+switching, conversation threads with search, document upload with metadata, and an activity
+dashboard. Next.js 16 on the front, FastAPI + PostgreSQL behind it.
 
 ![Conversation detail](docs/screenshots/conversation-detail.png)
 
@@ -16,11 +16,11 @@ If you have ten minutes, these five files carry most of the thinking:
 
 | File | Why |
 |---|---|
-| [ENGINEERING_REPORT.md](ENGINEERING_REPORT.md) | Three engineering decisions, each with the alternatives that were rejected |
+| [ENGINEERING_REPORT.md](ENGINEERING_REPORT.md) | Five engineering decisions, each with the alternatives that were rejected — including the multi-org transport choice |
 | [backend/app/core/errors.py](backend/app/core/errors.py) | One error envelope, applied app-wide — every failure leaves as `{ detail, code }` |
-| [backend/app/repositories/conversation_repository.py](backend/app/repositories/conversation_repository.py) | Search: `ILIKE` + `EXISTS`, with wildcard escaping so `50%` matches literally |
-| [backend/tests/test_ownership.py](backend/tests/test_ownership.py) | Ownership is enforced twice and tested twice, deliberately — and returns 404, never 403 |
-| [frontend/src/proxy.ts](frontend/src/proxy.ts) | The route guard, plus a comment on why it is *not* a security boundary |
+| [backend/app/core/deps.py](backend/app/core/deps.py) | `get_active_org` dependency — reads `X-Org-ID`, verifies membership, returns the org row |
+| [backend/tests/test_ownership.py](backend/tests/test_ownership.py) | Ownership is enforced twice and tested twice, deliberately — returns 404, never 403, for both cross-user and cross-org access |
+| [frontend/src/lib/org-context.tsx](frontend/src/lib/org-context.tsx) | Active-org state: React context + localStorage + plain cookie for SSR |
 
 ## Tech Stack
 
@@ -33,15 +33,22 @@ If you have ten minutes, these five files carry most of the thinking:
 | Backend | FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 | `asyncpg` driver; async all the way down |
 | Database | PostgreSQL 14+ | Alembic owns every schema change |
 | Auth | `bcrypt` + JWT in an `httpOnly` cookie | The token is deliberately absent from the login response body |
-| Tests | pytest + pytest-asyncio + httpx | 42 tests against a real PostgreSQL database |
+| Tests | pytest + pytest-asyncio + httpx | 61 tests against a real PostgreSQL database |
 
 ## Features
 
 **Auth** — register, log in, log out. The JWT is delivered only as an `httpOnly`,
 `SameSite=Lax` cookie, so JavaScript cannot read it. Passwords are hashed with `bcrypt`.
 
+**Organisations** — create an organisation on first login; the creator is automatically
+added as admin. Switch between organisations from the topbar without logging out — every
+view (dashboard, conversations, documents) updates instantly. Invite members via the API
+(`POST /api/v1/organizations/{org_id}/members`). Every conversation and document belongs
+to exactly one organisation and is invisible from any other.
+
 **Dashboard** — conversation, message and document counts, plus the five most recent of
-each. One aggregated endpoint, so the page is one round trip.
+each, all scoped to the active organisation. One aggregated endpoint, so the page is one
+round trip.
 
 **Conversations** — create, rename inline, delete with confirmation, paginated list.
 Search matches both conversation titles *and* message text, and returns each matching
@@ -127,7 +134,7 @@ calls it directly.
 
 ### 4. Confirm it works
 
-With the backend up, this should print `{"status":"ok"}` and then a user object:
+With the backend up, this should print `{"status":"ok"}`, then a user object, then an organisation object:
 
 ```bash
 curl -s http://localhost:8000/health && echo
@@ -142,7 +149,11 @@ curl -s -c /tmp/jar -X POST http://localhost:8000/api/v1/auth/login \
   -d '{"email":"you@example.com","password":"CorrectHorse1!"}' \
   -o /dev/null -w 'login: %{http_code}\n'
 
-curl -s -b /tmp/jar http://localhost:8000/api/v1/auth/me
+curl -s -b /tmp/jar http://localhost:8000/api/v1/auth/me && echo
+
+curl -s -b /tmp/jar -X POST http://localhost:8000/api/v1/organizations \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"My Org"}'
 ```
 
 Note that `login` returns no token in the body — only a `Set-Cookie` header. That is
