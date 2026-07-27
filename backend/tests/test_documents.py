@@ -6,24 +6,30 @@ from httpx import AsyncClient
 from app.core.config import settings
 
 DOCUMENTS = "/api/v1/documents"
+ORGS = "/api/v1/organizations"
 PDF = "application/pdf"
 TXT = "text/plain"
 
 
-@pytest_asyncio.fixture
-async def auth_client(client: AsyncClient) -> AsyncClient:
+async def _setup_user_and_org(client: AsyncClient, email: str) -> str:
+    """Register, log in, create an org, and return the org_id."""
     await client.post(
         "/api/v1/auth/register",
-        json={
-            "email": "docs@example.com",
-            "password": "password123",
-            "full_name": "Docs",
-        },
+        json={"email": email, "password": "password123", "full_name": email},
     )
     await client.post(
         "/api/v1/auth/login",
-        json={"email": "docs@example.com", "password": "password123"},
+        json={"email": email, "password": "password123"},
     )
+    org = (await client.post(ORGS, json={"name": "Test Org"})).json()
+    return org["organization"]["id"]
+
+
+@pytest_asyncio.fixture
+async def auth_client(client: AsyncClient) -> AsyncClient:
+    """A client already registered, logged in, and scoped to an org."""
+    org_id = await _setup_user_and_org(client, "docs@example.com")
+    client.headers["X-Org-ID"] = org_id
     return client
 
 

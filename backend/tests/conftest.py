@@ -23,7 +23,8 @@ TestSessionLocal = async_sessionmaker(
 )
 
 # Child tables first so TRUNCATE order is valid even without CASCADE.
-TABLES = ("messages", "documents", "conversations", "users")
+# user_organizations must come before both users and organizations.
+TABLES = ("messages", "documents", "conversations", "user_organizations", "users", "organizations")
 
 
 async def _reset_schema() -> None:

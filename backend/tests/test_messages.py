@@ -2,22 +2,21 @@ import pytest_asyncio
 from httpx import AsyncClient
 
 CONVERSATIONS = "/api/v1/conversations"
+ORGS = "/api/v1/organizations"
 
 
 @pytest_asyncio.fixture
 async def auth_client(client: AsyncClient) -> AsyncClient:
     await client.post(
         "/api/v1/auth/register",
-        json={
-            "email": "msg@example.com",
-            "password": "password123",
-            "full_name": "Msg",
-        },
+        json={"email": "msg@example.com", "password": "password123", "full_name": "Msg"},
     )
     await client.post(
         "/api/v1/auth/login",
         json={"email": "msg@example.com", "password": "password123"},
     )
+    org = (await client.post(ORGS, json={"name": "Msg Org"})).json()
+    client.headers["X-Org-ID"] = org["organization"]["id"]
     return client
 
 
