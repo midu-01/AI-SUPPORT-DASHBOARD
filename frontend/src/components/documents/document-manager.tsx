@@ -17,7 +17,8 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Card, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { useOrgFetch } from "@/hooks/use-org-fetch";
+import { ApiError } from "@/lib/api-client";
 import { cn, formatBytes, formatDate } from "@/lib/utils";
 import type { Document } from "@/types/api";
 
@@ -43,12 +44,13 @@ const ICON_BY_MIME: Record<string, LucideIcon> = {
 
 export function DocumentManager() {
   const queryClient = useQueryClient();
+  const orgFetch = useOrgFetch();
 
-  // ── List query ──────────────────────────────────────────────────────────
+  // ── List query ─────────────────────────────────────────────────────────────────
 
   const { data: documents, isLoading, isError, error } = useQuery({
     queryKey: ["documents"],
-    queryFn: () => apiFetch<Document[]>("/documents"),
+    queryFn: () => orgFetch<Document[]>("/documents"),
   });
 
   // ── Upload ──────────────────────────────────────────────────────────────
@@ -61,7 +63,7 @@ export function DocumentManager() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      return apiFetch<Document>("/documents", {
+      return orgFetch<Document>("/documents", {
         method: "POST",
         body: formData,
       });
@@ -143,7 +145,7 @@ export function DocumentManager() {
 
   const remove = useMutation({
     mutationFn: (id: string) =>
-      apiFetch<void>(`/documents/${id}`, { method: "DELETE" }),
+      orgFetch<void>(`/documents/${id}`, { method: "DELETE" }),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ["documents"] });
       const previous = queryClient.getQueryData<Document[]>(["documents"]);

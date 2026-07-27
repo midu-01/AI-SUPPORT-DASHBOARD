@@ -11,14 +11,17 @@ import { Card, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/use-debounce";
-import { apiFetch } from "@/lib/api-client";
+import { useOrgFetch } from "@/hooks/use-org-fetch";
+import { useOrg } from "@/lib/org-context";
 import { cn, formatDate } from "@/lib/utils";
 import type { Conversation, PaginatedConversations } from "@/types/api";
 
 // ── Query keys ──────────────────────────────────────────────────────────────
 
-function conversationsKey(q: string, page: number) {
-  return ["conversations", { q, page }] as const;
+// orgId is part of the key so that switching org immediately invalidates the
+// cache and triggers a fresh fetch scoped to the new org.
+function conversationsKey(orgId: string | null, q: string, page: number) {
+  return ["conversations", { orgId, q, page }] as const;
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
@@ -26,6 +29,8 @@ function conversationsKey(q: string, page: number) {
 export function ConversationList() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { orgId } = useOrg();
+  const orgFetch = useOrgFetch();
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -36,18 +41,19 @@ export function ConversationList() {
   const effectivePage = search !== debouncedSearch ? 1 : page;
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: conversationsKey(effectiveSearch, effectivePage),
+    queryKey: conversationsKey(orgId, effectiveSearch, effectivePage),
     queryFn: () =>
-      apiFetch<PaginatedConversations>(
+      orgFetch<PaginatedConversations>(
         `/conversations?q=${encodeURIComponent(effectiveSearch)}&page=${effectivePage}&size=20`,
       ),
+    enabled: !!orgId,
   });
 
   // ── Create ──────────────────────────────────────────────────────────────
 
   const create = useMutation({
     mutationFn: () =>
-      apiFetch<Conversation>("/conversations", {
+      orgFetch<Conversation>("/conversations", {
         method: "POST",
         body: { title: "New conversation" },
       }),
@@ -64,12 +70,11 @@ export function ConversationList() {
 
   const remove = useMutation({
     mutationFn: (id: string) =>
-      apiFetch<void>(`/conversations/${id}`, { method: "DELETE" }),
+      orgFetch<void>(`/conversations/${id}`, { method: "DELETE" }),
     onMutate: async (id) => {
-      // Cancel in-flight fetches so they don't overwrite the optimistic update.
       await queryClient.cancelQueries({ queryKey: ["conversations"] });
 
-      const key = conversationsKey(effectiveSearch, effectivePage);
+      const key = conversationsKey(orgId, effectiveSearch, effectivePage);
       const previous = queryClient.getQueryData<PaginatedConversations>(key);
 
       if (previous) {

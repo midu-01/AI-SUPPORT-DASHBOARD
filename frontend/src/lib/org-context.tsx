@@ -5,17 +5,25 @@
  *
  * Responsibilities:
  *  1. Fetch the user's org list once on mount via React Query.
- *  2. Persist the active org id in localStorage so a page refresh keeps the
- *     selection — the user should not have to re-pick their org every time.
- *  3. Expose `activeOrg`, `orgs`, and `setActiveOrg` to any client component
- *     that needs them.
+ *  2. Persist the active org id in localStorage (survives page refresh) AND
+ *     in a plain cookie (readable by Next.js Server Components via
+ *     `serverApiFetch`, which forwards it as the `X-Org-ID` header).
+ *  3. Expose `activeOrg`, `orgs`, `setActiveOrg`, and `orgId` to any client
+ *     component that needs them.
  *
  * Why context rather than a global React Query key?
  * The active org is *UI state*, not server state — the server does not know
  * which org is "active"; it only knows which org the request is scoped to via
- * the X-Org-ID header.  Keeping it in context (backed by localStorage) is the
- * right layer: it is client-only, survives navigation, and is cleared on logout
- * by the Topbar's `queryClient.clear()` call (which also clears the query cache).
+ * the X-Org-ID header.  Keeping it in context (backed by localStorage + cookie)
+ * is the right layer: it is client-only, survives navigation, and is cleared on
+ * logout by the Topbar's `queryClient.clear()` call.
+ *
+ * Cookie vs. localStorage for SSR:
+ * localStorage is not readable on the server.  A plain (non-httpOnly) cookie
+ * IS forwarded with every request, so `serverApiFetch` can read it and include
+ * it as `X-Org-ID` without any client round-trip.  The cookie carries no secret
+ * — it is just an org UUID that the backend validates against the user's
+ * membership on every request anyway.
  */
 
 import {
@@ -32,6 +40,24 @@ import { apiFetch } from "./api-client";
 import type { Organization } from "@/types/api";
 
 const LS_KEY = "activeOrgId";
+/** Cookie name read by serverApiFetch to forward as X-Org-ID. */
+export const ORG_COOKIE = "activeOrgId";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function writeOrgCookie(orgId: string | null): void {
+  if (typeof document === "undefined") return;
+  if (orgId) {
+    // SameSite=Lax: sent on same-site navigations and top-level cross-site GETs,
+    // but not on cross-site sub-resource requests — sufficient for our use case.
+    // No `httpOnly`: the cookie must be readable by JS (OrgProvider) and by the
+    // Next.js server (serverApiFetch).  It carries no secret — the backend
+    // validates membership on every request regardless.
+    document.cookie = `${ORG_COOKIE}=${orgId}; path=/; SameSite=Lax`;
+  } else {
+    document.cookie = `${ORG_COOKIE}=; path=/; max-age=0`;
+  }
+}
 
 // ── Context shape ─────────────────────────────────────────────────────────────
 
@@ -39,6 +65,8 @@ interface OrgContextValue {
   /** The currently selected organisation, or `null` while loading / if the user
    *  has no orgs yet. */
   activeOrg: Organization | null;
+  /** Convenience shorthand — `activeOrg?.id ?? null`. */
+  orgId: string | null;
   /** All orgs the user belongs to. */
   orgs: Organization[];
   /** Switch the active org.  Clears the entire React Query cache so every
@@ -80,6 +108,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       const first = orgs[0];
       setActiveOrgId(first.id);
       localStorage.setItem(LS_KEY, first.id);
+      writeOrgCookie(first.id);
     }
   }, [orgs, activeOrgId]);
 
@@ -89,6 +118,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     (org: Organization) => {
       setActiveOrgId(org.id);
       localStorage.setItem(LS_KEY, org.id);
+      writeOrgCookie(org.id);
       // Invalidate everything scoped to the previous org.  `removeQueries` on
       // the keys that carry org data would be more surgical, but the surface is
       // large (conversations, documents, dashboard, messages) and will grow.
@@ -101,7 +131,15 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <OrgContext.Provider value={{ activeOrg, orgs, setActiveOrg, isLoading }}>
+    <OrgContext.Provider
+      value={{
+        activeOrg,
+        orgId: activeOrg?.id ?? null,
+        orgs,
+        setActiveOrg,
+        isLoading,
+      }}
+    >
       {children}
     </OrgContext.Provider>
   );

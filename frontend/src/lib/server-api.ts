@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 
 import { ApiError, apiFetch } from "./api-client";
+import { ORG_COOKIE } from "./org-context";
 import type { User } from "@/types/api";
 
 /**
@@ -12,6 +13,11 @@ import type { User } from "@/types/api";
  * to be forwarded by hand. Without this, every server-rendered fetch returns a
  * 401 while the identical call from the browser succeeds, which is a genuinely
  * confusing way to spend an afternoon.
+ *
+ * `X-Org-ID` is forwarded from the `activeOrgId` cookie written by `OrgProvider`
+ * whenever the user selects an org.  The cookie is plain (non-httpOnly) so the
+ * server can read it here.  The backend validates membership on every request
+ * regardless, so the cookie carries no privilege — it is just a routing hint.
  *
  * Importing `next/headers` also pins this module to the server: a Client
  * Component that imports it fails at build time rather than at runtime.
@@ -27,9 +33,23 @@ export async function serverApiFetch<T>(
     .map(({ name, value }) => `${name}=${value}`)
     .join("; ");
 
+  // Forward the active org id as X-Org-ID so Server Components (dashboard,
+  // conversation detail) are scoped to the same org the client has selected.
+  const activeOrgId = cookieStore.get(ORG_COOKIE)?.value;
+
+  // Build the merged header object explicitly so TypeScript can verify the
+  // shape.  Spreading `options.headers` (HeadersInit | undefined) into an
+  // object literal produces a union that is not assignable back to HeadersInit,
+  // so we use the Headers constructor to normalise it first.
+  const merged = new Headers(options.headers as HeadersInit | undefined);
+  merged.set("cookie", cookieHeader);
+  if (activeOrgId) {
+    merged.set("X-Org-ID", activeOrgId);
+  }
+
   return apiFetch<T>(path, {
     ...options,
-    headers: { ...options.headers, cookie: cookieHeader },
+    headers: merged,
     // Per-user data must never be cached and handed to the next visitor.
     cache: "no-store",
   });
@@ -57,3 +77,4 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
     throw error;
   }
 });
+

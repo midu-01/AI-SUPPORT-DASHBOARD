@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiFetch } from "@/lib/api-client";
+import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 import type { Conversation, Message } from "@/types/api";
 
@@ -32,12 +32,13 @@ export function ConversationDetail({
 }: ConversationDetailProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const orgFetch = useOrgFetch();
 
   // ── Conversation query (seeded with server data) ────────────────────────
 
   const { data: conversation } = useQuery({
     queryKey: ["conversation", id],
-    queryFn: () => apiFetch<Conversation>(`/conversations/${id}`),
+    queryFn: () => orgFetch<Conversation>(`/conversations/${id}`),
     initialData: initial,
   });
 
@@ -45,7 +46,7 @@ export function ConversationDetail({
 
   const { data: messages = [] } = useQuery({
     queryKey: ["messages", id],
-    queryFn: () => apiFetch<Message[]>(`/conversations/${id}/messages`),
+    queryFn: () => orgFetch<Message[]>(`/conversations/${id}/messages`),
     initialData: initialMessages,
   });
 
@@ -61,7 +62,7 @@ export function ConversationDetail({
 
   const rename = useMutation({
     mutationFn: (title: string) =>
-      apiFetch<Conversation>(`/conversations/${id}`, {
+      orgFetch<Conversation>(`/conversations/${id}`, {
         method: "PATCH",
         body: { title },
       }),
@@ -114,7 +115,7 @@ export function ConversationDetail({
 
   const remove = useMutation({
     mutationFn: () =>
-      apiFetch<void>(`/conversations/${id}`, { method: "DELETE" }),
+      orgFetch<void>(`/conversations/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -129,7 +130,7 @@ export function ConversationDetail({
 
   const send = useMutation({
     mutationFn: (content: string) =>
-      apiFetch<Message>(`/conversations/${id}/messages`, {
+      orgFetch<Message>(`/conversations/${id}/messages`, {
         method: "POST",
         body: { content, role: "user" },
       }),
