@@ -383,3 +383,102 @@ never work with an async driver, a package that would not install, hashing that 
 any modern `bcrypt`, and the test suite described in §5. That work is invisible in a feature
 list, but it is what makes everything else in this report a checked claim rather than an
 assumption.
+
+---
+
+## 8. Requirement Update — Multi-Organization Support
+
+### What changed
+
+The brief was extended to require that every conversation and document belongs to exactly one
+organization, that a user may belong to multiple organizations, and that users can switch
+organizations without logging out. All views — dashboard, conversations, documents, search —
+must be scoped to the currently selected organization.
+
+### Parts of the system affected
+
+| Layer | Change |
+|---|---|
+| Database | Two new tables; two new FK columns |
+| Backend models | `Organization`, `UserOrganization`; `org_id` on `Conversation` and `Document` |
+| Backend repositories | New `OrganizationRepository`; all existing list/create queries gain an `org_id` filter |
+| Backend API | New `/api/v1/organizations` router; `get_active_org` dependency used by all scoped routes |
+| Backend deps | `get_active_org` reads `X-Org-ID` header, verifies membership, returns the `Organization` |
+| Frontend | Org switcher component; `X-Org-ID` sent on every API call |
+
+### Database changes
+
+**New tables:**
+
+- `organizations` — `id` (UUID PK), `name` (VARCHAR 255), `created_at`
+- `user_organizations` — composite PK `(user_id, org_id)`, `role` (VARCHAR + CHECK: `member`
+  or `admin`), `joined_at`; both FKs cascade on delete
+
+**New columns:**
+
+- `conversations.org_id` — FK → `organizations.id`, `ON DELETE CASCADE`, nullable in the
+  migration (see *Deferred items* below)
+- `documents.org_id` — same
+
+**Index changes:**
+
+- `ix_conversations_user_updated` replaced by `ix_conversations_org_user_updated` on
+  `(org_id, user_id, updated_at)` — `org_id` leads because every list query now carries it
+- `ix_documents_user_id` replaced by `ix_documents_org_user` on `(org_id, user_id)`
+
+The migration (`a1b2c3d4e5f6`) is fully reversible; `downgrade()` drops indexes, FK
+constraints, and columns in the correct reverse order and restores the original indexes.
+
+### Key design decisions
+
+**Decision 4 — Active-org transport: `X-Org-ID` request header**
+
+| | JWT claim | Separate cookie | **`X-Org-ID` header (chosen)** |
+|---|---|---|---|
+| Org switch without re-login | ❌ needs new token | ✅ | ✅ |
+| Stateless server | ✅ | ✅ | ✅ |
+| Explicit in every request | ✅ | ❌ implicit | ✅ |
+| SSR-friendly | ❌ re-issue on switch | Awkward | ✅ set in `fetch` options |
+| CSRF risk | None | Needs `SameSite` | None — custom headers are same-origin only |
+
+A JWT claim would require re-issuing the token on every org switch, coupling identity and
+workspace into the same credential. A separate cookie is sent automatically by the browser,
+which makes it invisible to `fetch` calls that do not explicitly forward it, and it is
+awkward to read in Next.js Server Components. The header is explicit, stateless, easy to
+test with `curl` or Postman, and carries no CSRF risk because the same-origin policy blocks
+custom headers from cross-origin requests.
+
+**`get_active_org` dependency** reads `X-Org-ID`, verifies that the authenticated user is a
+member of that org, and returns the `Organization` row. Membership is checked on every
+request — a user removed from an org between requests is rejected on the next call. The
+response is always **404, never 403** — a 403 would confirm the org exists to a non-member,
+the same information-leak avoided on conversations.
+
+**Decision 5 — Org membership model: join table with role column**
+
+`user_organizations` is a standard many-to-many join table with an optional `role` column
+(`member` / `admin`). The alternative — a flat list of org IDs on the user — cannot express
+roles without a parallel structure. The join table covers both the simple case (membership
+check) and the richer case (admin-only invite) without a schema change.
+
+Role is stored as `VARCHAR + CHECK` with `create_constraint=True`, consistent with the
+existing enum pattern in the codebase (see §4 — the missing-constraint bug).
+
+**Org creation atomicity:** `OrganizationRepository.create` uses `flush()` to obtain the
+org's UUID before inserting the membership row, then commits both in a single transaction.
+The org never exists without at least one admin.
+
+### Deferred items
+
+**`org_id` NOT NULL enforcement.** The migration adds `org_id` as nullable on both
+`conversations` and `documents`. Rows created before organizations existed have no org
+assignment. The production path is: (1) add nullable column — done; (2) backfill existing
+rows to a default org; (3) `ALTER COLUMN SET NOT NULL`. Step 3 is deferred because the
+assessment database has no pre-existing rows that need backfilling, and forcing NOT NULL in
+the migration would break any deployment that runs the migration before the backfill. The
+models declare `nullable=False` to reflect the intended steady-state; the migration is the
+honest description of what the database actually allows today.
+
+**Member invitation UI.** `POST /api/v1/organizations/{org_id}/members` is implemented and
+admin-gated on the backend. The frontend exposes org creation and switching but not a member
+management screen. This is documented in `ASSUMPTIONS.md`.

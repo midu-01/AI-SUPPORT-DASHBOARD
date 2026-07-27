@@ -32,6 +32,15 @@ TAGS_METADATA = [
         ),
     },
     {"name": "dashboard", "description": "Aggregated counts and recent activity."},
+    {
+        "name": "organizations",
+        "description": (
+            "Organization management. Pass the active org's id in the "
+            "**`X-Org-ID`** header on every request that is scoped to an org. "
+            "The backend verifies membership on every call — switching orgs is a "
+            "client-side state change with no server round-trip."
+        ),
+    },
     {"name": "health", "description": "Liveness probe."},
 ]
 
