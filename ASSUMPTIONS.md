@@ -20,24 +20,35 @@ read. `documents.storage_path` is the one place that would change if this moved 
 
 | Area | Assumption |
 |---|---|
-| Users | Each user only ever sees their own data. No teams, organisations, roles, or sharing. |
-| Conversations | A conversation is a titled thread of messages owned by one user. |
+| Users | Each user only ever sees their own data within their active organisation. |
+| Conversations | A conversation is a titled thread of messages owned by one user and scoped to one organisation. |
 | Messages | Can be created and read, but not edited or deleted — the brief asks for conversation CRUD, not message CRUD. |
 | Auth | Email + password (bcrypt), JWT delivered in an `httpOnly` cookie. No refresh token, email verification, password reset, or OAuth. |
 | Deletes | Hard delete with `ON DELETE CASCADE`. No soft delete — there is no undo or audit requirement here, and it would add a `deleted_at` filter to every query. |
-| Search | Matches conversation titles and message text, and returns the matching conversations. |
+| Search | Matches conversation titles and message text, scoped to the active organisation. |
 | Uploads | PDF, DOCX, TXT only, 10 MB maximum, enforced on the server while streaming. The UI pre-checks type and size for faster feedback, but that is a courtesy — the server validates independently and never trusts the client. |
 | Document status | Always `uploaded` — there is no background processing pipeline. |
-| Ownership errors | Requesting another user's resource returns `404`, not `403`. A `403` would confirm that the resource exists. |
+| Ownership errors | Requesting another user's resource, or a resource from an org the user doesn't belong to, returns `404`, not `403`. A `403` would confirm that the resource exists. |
 | Timestamps | Stored in UTC; the frontend formats them for display with a pinned `en-GB` locale, so server and client render identically. No timezone setting. |
 | UI | Light mode only, English only, no dark mode and no i18n. |
 | Database | PostgreSQL running locally (see README). Alembic owns every schema change. |
 
+## Multi-organisation scope decisions
+
+| Area | Assumption |
+|---|---|
+| Active-org transport | `X-Org-ID` request header. Chosen over a JWT claim (requires re-login to switch) and a separate cookie (implicit, awkward in SSR). The header is stateless, explicit, and carries no CSRF risk. |
+| Org membership model | Join table (`user_organizations`) with a `role` column (`member` / `admin`). Covers both simple membership checks and admin-only operations without a schema change. |
+| `org_id` nullability | `org_id` is nullable in the migration but `NOT NULL` in the models. The migration comment explains the 3-step backfill strategy; step 3 (SET NOT NULL) is deferred because the assessment database has no pre-existing rows. |
+| Org creation | Any authenticated user can create an organisation and is automatically added as its admin. |
+| Member invitation | `POST /api/v1/organizations/{org_id}/members` is implemented and admin-gated on the backend. The frontend does not expose a member management screen — deferred as out of scope for this assessment. |
+| Org deletion | Not implemented. Deleting an org would cascade-delete all its conversations and documents, which is a destructive operation that warrants a separate, deliberate design decision. |
+| Dashboard | All five summary queries (counts + recent lists) are scoped to the active org. The response includes `current_org` so the frontend knows which org the numbers belong to. |
+
 ## Out of scope
 
-Real AI/LLM calls, document text extraction, embeddings and RAG, teams and permissions,
-real-time updates, S3 storage, background workers, rate limiting, soft delete and audit
-logging, and exhaustive test coverage. Tests focus on auth, conversation CRUD, ownership
-isolation, and upload validation.
+Real AI/LLM calls, document text extraction, embeddings and RAG, real-time updates,
+S3 storage, background workers, rate limiting, soft delete and audit logging, exhaustive
+test coverage, org deletion, member management UI, and org invitation emails.
 
 Known limitations and what I would improve are covered in `ENGINEERING_REPORT.md`.

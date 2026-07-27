@@ -6,6 +6,23 @@ Interactive docs: `http://localhost:8000/docs` (Swagger UI)
 
 ---
 
+## Active Organisation Header
+
+All endpoints that are scoped to an organisation require the `X-Org-ID` header:
+
+```
+X-Org-ID: <org-uuid>
+```
+
+The backend verifies on every request that the authenticated user is a member of the
+specified org. A missing header returns `400 ORG_REQUIRED`. An org the user doesn't
+belong to returns `404 ORGANIZATION_NOT_FOUND` — never `403`, which would confirm the
+org exists.
+
+Endpoints marked **org-scoped** in the tables below require this header.
+
+---
+
 ## Auth
 
 | Method | Endpoint | Auth | Request Body | Success | Error |
@@ -17,42 +34,87 @@ Interactive docs: `http://localhost:8000/docs` (Swagger UI)
 
 ---
 
-## Conversations
+## Organisations
 
 | Method | Endpoint | Auth | Notes | Success | Error |
 |--------|----------|------|-------|---------|-------|
-| POST | `/conversations` | ✅ | `{ title }` | 201 | 422 |
-| GET | `/conversations?q=&page=&size=` | ✅ | Search + pagination | 200 | — |
-| GET | `/conversations/{id}` | ✅ | Ownership enforced | 200 | 404 |
-| PATCH | `/conversations/{id}` | ✅ | `{ title }` | 200 | 404, 422 |
-| DELETE | `/conversations/{id}` | ✅ | Cascades messages | 204 | 404 |
+| POST | `/organizations` | ✅ | `{ name }` — creator auto-added as admin | 201 `{ organization, membership }` | 422 |
+| GET | `/organizations` | ✅ | Lists orgs the caller belongs to | 200 `Organization[]` | — |
+| POST | `/organizations/{org_id}/members` | ✅ admin only | `{ user_id, role }` — role: `member` \| `admin` | 201 `Membership` | 403, 404, 409 |
+
+### Response shapes
+
+```jsonc
+// Organization
+{ "id": "uuid", "name": "Acme", "created_at": "2026-07-28T..." }
+
+// Membership
+{ "user_id": "uuid", "org_id": "uuid", "role": "admin", "joined_at": "2026-07-28T..." }
+
+// OrganizationCreated (POST /organizations response)
+{ "organization": { ...Organization }, "membership": { ...Membership } }
+```
+
+---
+
+## Conversations
+
+> **org-scoped** — requires `X-Org-ID` header.
+
+| Method | Endpoint | Auth | Notes | Success | Error |
+|--------|----------|------|-------|---------|-------|
+| POST | `/conversations` | ✅ | `{ title }` | 201 | 400, 422 |
+| GET | `/conversations?q=&page=&size=` | ✅ | Search + pagination, scoped to active org | 200 | 400 |
+| GET | `/conversations/{id}` | ✅ | Ownership + org enforced | 200 | 400, 404 |
+| PATCH | `/conversations/{id}` | ✅ | `{ title }` | 200 | 400, 404, 422 |
+| DELETE | `/conversations/{id}` | ✅ | Cascades messages | 204 | 400, 404 |
 
 ---
 
 ## Messages
 
+> **org-scoped** — requires `X-Org-ID` header.
+
 | Method | Endpoint | Auth | Notes | Success | Error |
 |--------|----------|------|-------|---------|-------|
-| GET | `/conversations/{id}/messages` | ✅ | Ordered by `created_at` ASC | 200 | 404 |
-| POST | `/conversations/{id}/messages` | ✅ | `{ content, role }` | 201 | 404, 422 |
+| GET | `/conversations/{id}/messages` | ✅ | Ordered by `created_at` ASC | 200 | 400, 404 |
+| POST | `/conversations/{id}/messages` | ✅ | `{ content, role }` | 201 | 400, 404, 422 |
 
 ---
 
 ## Documents
 
+> **org-scoped** — requires `X-Org-ID` header.
+
 | Method | Endpoint | Auth | Notes | Success | Error |
 |--------|----------|------|-------|---------|-------|
-| POST | `/documents` | ✅ | `multipart/form-data`, max 10 MB, PDF/DOCX/TXT | 201 | 400 type, 413 size |
-| GET | `/documents` | ✅ | Ordered by `uploaded_at` DESC | 200 | — |
-| DELETE | `/documents/{id}` | ✅ | Removes file from disk | 204 | 404 |
+| POST | `/documents` | ✅ | `multipart/form-data`, max 10 MB, PDF/DOCX/TXT | 201 | 400 type, 400 missing header, 413 size |
+| GET | `/documents` | ✅ | Ordered by `uploaded_at` DESC, scoped to active org | 200 | 400 |
+| DELETE | `/documents/{id}` | ✅ | Removes file from disk | 204 | 400, 404 |
 
 ---
 
 ## Dashboard
 
+> **org-scoped** — requires `X-Org-ID` header.
+
 | Method | Endpoint | Auth | Notes | Success |
 |--------|----------|------|-------|---------|
-| GET | `/dashboard/summary` | ✅ | Counts + last 5 conversations + last 5 documents | 200 |
+| GET | `/dashboard/summary` | ✅ | Counts + last 5 conversations + last 5 documents, all scoped to active org | 200 |
+
+### Response shape
+
+```jsonc
+{
+  "user": { ...UserRead },
+  "current_org": { ...Organization },
+  "total_conversations": 12,
+  "total_documents": 4,
+  "total_messages": 87,
+  "recent_conversations": [ ...Conversation[] ],
+  "recent_documents": [ ...Document[] ]
+}
+```
 
 ---
 
@@ -81,9 +143,29 @@ Common HTTP status codes used:
 |------|---------|
 | 201 | Created |
 | 204 | Deleted (no body) |
-| 400 | Bad request (e.g. invalid file type) |
+| 400 | Bad request (e.g. invalid file type, missing `X-Org-ID`) |
 | 401 | Unauthenticated |
-| 404 | Not found (also used for ownership violations) |
-| 409 | Conflict (e.g. duplicate email) |
+| 403 | Forbidden (e.g. non-admin attempting to invite members) |
+| 404 | Not found (also used for ownership violations and non-member org access) |
+| 409 | Conflict (e.g. duplicate email, user already a member) |
 | 413 | Payload too large |
 | 422 | Validation error |
+
+## Machine-readable error codes
+
+| Code | Status | Meaning |
+|------|--------|---------|
+| `UNAUTHENTICATED` | 401 | Missing or invalid JWT cookie |
+| `INVALID_CREDENTIALS` | 401 | Wrong email or password |
+| `EMAIL_ALREADY_REGISTERED` | 409 | Registration with a duplicate email |
+| `CONVERSATION_NOT_FOUND` | 404 | Conversation missing, wrong user, or wrong org |
+| `DOCUMENT_NOT_FOUND` | 404 | Document missing, wrong user, or wrong org |
+| `ORGANIZATION_NOT_FOUND` | 404 | Org missing or caller is not a member |
+| `ALREADY_MEMBER` | 409 | User is already a member of the org |
+| `ORG_REQUIRED` | 400 | `X-Org-ID` header is missing |
+| `FILE_TYPE_NOT_ALLOWED` | 400 | Upload MIME type is not PDF, DOCX, or TXT |
+| `FILE_TOO_LARGE` | 413 | Upload exceeds 10 MB |
+| `FILE_EMPTY` | 400 | Upload has zero bytes |
+| `FILENAME_REQUIRED` | 400 | Multipart part has no filename |
+| `VALIDATION_ERROR` | 422 | Pydantic validation failed; `errors` array present |
+| `INTERNAL_ERROR` | 500 | Unhandled exception (traceback logged, not returned) |
