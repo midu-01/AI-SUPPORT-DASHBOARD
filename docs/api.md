@@ -56,6 +56,14 @@ Interactive docs: `http://localhost:8000/docs` (Swagger UI)
 
 ---
 
+## Health
+
+| Method | Endpoint | Auth | Notes | Success |
+|--------|----------|------|-------|---------|
+| GET | `/health` | ❌ | Liveness probe. **Not** under the `/api/v1` prefix — it answers about the process, not the API version | 200 `{ "status": "ok" }` |
+
+---
+
 ## Error Envelope
 
 All errors return a consistent JSON body:

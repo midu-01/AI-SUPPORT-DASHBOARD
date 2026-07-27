@@ -44,3 +44,20 @@ export function formatDate(iso: string): string {
     day: "numeric",
   });
 }
+
+/**
+ * As `formatDate`, but with the time — for message bubbles.
+ *
+ * A thread is usually one sitting, so a date on every bubble is the same string
+ * repeated down the page and tells the reader nothing about ordering. The time
+ * is the part that carries information at that granularity; the date is kept so
+ * a thread resumed the next day is not silently misread.
+ */
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}

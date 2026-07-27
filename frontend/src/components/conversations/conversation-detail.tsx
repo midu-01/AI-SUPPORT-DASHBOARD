@@ -10,7 +10,7 @@ import { Card, CardBody, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/api-client";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, formatDateTime } from "@/lib/utils";
 import type { Conversation, Message } from "@/types/api";
 
 // ── Props ───────────────────────────────────────────────────────────────────
@@ -265,7 +265,7 @@ export function ConversationDetail({
                           : "text-slate-500",
                       )}
                     >
-                      {formatDate(msg.created_at)}
+                      {formatDateTime(msg.created_at)}
                     </time>
                   </div>
                 </div>
