@@ -190,14 +190,14 @@ Both `.env` files are gitignored.
 ├── backend/
 │   ├── alembic/versions/        # migrations — the only way the schema changes
 │   ├── app/
-│   │   ├── api/v1/              # routers: auth, conversations, documents, dashboard
+│   │   ├── api/v1/              # routers: auth, conversations, documents, dashboard, organizations
 │   │   ├── core/                # config, deps, errors, security
 │   │   ├── db/                  # engine + session
 │   │   ├── models/              # SQLAlchemy models
 │   │   ├── repositories/        # all query logic lives here
 │   │   ├── schemas/             # Pydantic request/response models
 │   │   └── main.py
-│   └── tests/                   # 42 tests, run against a real database
+│   └── tests/                   # 61 tests, run against a real database
 ├── frontend/src/
 │   ├── app/
 │   │   ├── (auth)/              # login, register — no chrome
@@ -246,7 +246,7 @@ cannot run inside a transaction.
 
 ```bash
 cd backend
-pytest                                        # whole suite — 42 tests
+pytest                                        # whole suite — 61 tests
 pytest tests/test_auth.py::test_login_and_me   # one test
 pytest -k ownership                            # by name
 ```
