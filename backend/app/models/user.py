@@ -28,3 +28,6 @@ class User(Base):
     documents: Mapped[list["Document"]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"
     )
+    organizations: Mapped[list["UserOrganization"]] = relationship(  # noqa: F821
+        back_populates="user", cascade="all, delete-orphan"
+    )

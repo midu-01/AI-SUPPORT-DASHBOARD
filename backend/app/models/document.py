@@ -24,6 +24,9 @@ class Document(Base):
     user_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    org_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -47,5 +50,8 @@ class Document(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="documents")  # noqa: F821
+    organization: Mapped["Organization"] = relationship(  # noqa: F821
+        back_populates="documents"
+    )
 
-    __table_args__ = (Index("ix_documents_user_id", "user_id"),)
+    __table_args__ = (Index("ix_documents_org_user", "org_id", "user_id"),)
