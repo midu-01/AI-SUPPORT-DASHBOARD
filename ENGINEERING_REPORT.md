@@ -8,7 +8,7 @@ TXT) whose metadata is stored in PostgreSQL, and search across their conversatio
 *or* message text. Every conversation and document is scoped to the user's currently selected
 organisation; switching organisations changes every view without logging out.
 
-**Current state:** the backend is complete and covered by **61 passing tests**. The Next.js
+**Current state:** the backend is complete and covered by **68 passing tests**. The Next.js
 frontend is **feature-complete against the updated brief**: registration, login, logout, the
 route guard, the authenticated shell, the dashboard, conversation CRUD with search and message
 threads, document upload, organisation creation, and organisation switching all work end to end
@@ -300,7 +300,7 @@ run twice in a row unchanged, and the fix is what let me verify everything else 
 
 **Largest gap first:**
 
-- **The frontend has no automated tests.** The backend has 42; the UI was verified by driving
+- **The frontend has no automated tests.** The backend has 68; the UI was verified by driving
   the real flow against a running API and a headless browser — signed-out redirect,
   valid-cookie render, forged-cookie rejection, the already-signed-in bounce off `/login`,
   no horizontal overflow at 375/768/1440 px, keyboard operation of the modals, accessible
@@ -521,7 +521,7 @@ cache — every query re-fetches on the next render with the new org id.
 
 ### What the test suite covers
 
-The test count grew from 42 to **61**. New coverage:
+The test count grew from 42 to **68**. New coverage:
 
 - `tests/test_organizations.py` (19 tests) — create, list, add member, duplicate guard,
   admin-only enforcement, `get_active_org` dependency (missing header → 400, non-member → 404,
@@ -533,6 +533,9 @@ The test count grew from 42 to **61**. New coverage:
 - All existing `auth_client` fixtures in `test_conversations.py`, `test_documents.py`, and
   `test_messages.py` updated to create an org and set `X-Org-ID` — the existing tests pass
   unchanged because the header is now always present
+- `tests/test_dashboard.py` (7 tests) — summary shape, counts reflect created data, recent
+  lists capped at 5, authentication required, org header required, org-scoped counts reset
+  on switch, `current_org` present in response
 
 Every new protection test is verified to fail when the protection is removed. A test that
 passes for the wrong reason is worse than no test.

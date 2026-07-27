@@ -33,7 +33,7 @@ If you have ten minutes, these five files carry most of the thinking:
 | Backend | FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 | `asyncpg` driver; async all the way down |
 | Database | PostgreSQL 14+ | Alembic owns every schema change |
 | Auth | `bcrypt` + JWT in an `httpOnly` cookie | The token is deliberately absent from the login response body |
-| Tests | pytest + pytest-asyncio + httpx | 61 tests against a real PostgreSQL database |
+| Tests | pytest + pytest-asyncio + httpx | 68 tests against a real PostgreSQL database |
 
 ## Features
 
@@ -197,7 +197,7 @@ Both `.env` files are gitignored.
 │   │   ├── repositories/        # all query logic lives here
 │   │   ├── schemas/             # Pydantic request/response models
 │   │   └── main.py
-│   └── tests/                   # 61 tests, run against a real database
+│   └── tests/                   # 68 tests, run against a real database
 ├── frontend/src/
 │   ├── app/
 │   │   ├── (auth)/              # login, register — no chrome
@@ -246,7 +246,7 @@ cannot run inside a transaction.
 
 ```bash
 cd backend
-pytest                                        # whole suite — 61 tests
+pytest                                        # whole suite — 68 tests
 pytest tests/test_auth.py::test_login_and_me   # one test
 pytest -k ownership                            # by name
 ```
