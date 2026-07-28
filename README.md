@@ -10,6 +10,12 @@ dashboard. Next.js 16 on the front, FastAPI + PostgreSQL behind it.
 called anywhere. `messages.role` and `documents.status` exist so an AI layer could be
 added later without a migration. That reasoning is in [ASSUMPTIONS.md](ASSUMPTIONS.md).
 
+## Video Walkthrough
+
+👉 **[Watch the full walkthrough](https://your-video-link-here.com)** — registration, org
+creation, conversation CRUD with search, document upload, org switching, and the dashboard,
+all demonstrated end to end.
+
 ## Where to look first
 
 If you have ten minutes, these five files carry most of the thinking:
@@ -33,7 +39,7 @@ If you have ten minutes, these five files carry most of the thinking:
 | Backend | FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 | `asyncpg` driver; async all the way down |
 | Database | PostgreSQL 14+ | Alembic owns every schema change |
 | Auth | `bcrypt` + JWT in an `httpOnly` cookie | The token is deliberately absent from the login response body |
-| Tests | pytest + pytest-asyncio + httpx | 68 tests against a real PostgreSQL database |
+| Tests | pytest + pytest-asyncio + httpx | 69 tests against a real PostgreSQL database |
 
 ## Features
 
@@ -197,7 +203,7 @@ Both `.env` files are gitignored.
 │   │   ├── repositories/        # all query logic lives here
 │   │   ├── schemas/             # Pydantic request/response models
 │   │   └── main.py
-│   └── tests/                   # 68 tests, run against a real database
+│   └── tests/                   # 69 tests, run against a real database
 ├── frontend/src/
 │   ├── app/
 │   │   ├── (auth)/              # login, register — no chrome
@@ -246,7 +252,7 @@ cannot run inside a transaction.
 
 ```bash
 cd backend
-pytest                                        # whole suite — 68 tests
+pytest                                        # whole suite — 69 tests
 pytest tests/test_auth.py::test_login_and_me   # one test
 pytest -k ownership                            # by name
 ```
