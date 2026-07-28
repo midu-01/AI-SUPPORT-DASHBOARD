@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { Logo } from "@/components/ui/logo";
+
 /**
  * Shell for the signed-out pages.
  *
@@ -11,7 +13,12 @@ import type { ReactNode } from "react";
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm">{children}</div>
+      <div className="w-full max-w-sm">
+        <div className="mb-8 flex justify-center">
+          <Logo size="md" />
+        </div>
+        {children}
+      </div>
     </main>
   );
 }

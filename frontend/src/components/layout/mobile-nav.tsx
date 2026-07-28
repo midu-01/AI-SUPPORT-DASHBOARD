@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { NavLinks } from "./sidebar";
+import { Logo } from "@/components/ui/logo";
 
 /**
  * Hamburger button and the drawer it opens. Rendered only below `md`, where the
@@ -82,9 +83,7 @@ export function MobileNav() {
         className="m-0 h-full max-h-none w-64 max-w-[80vw] border-r border-border bg-surface p-0 backdrop:bg-slate-900/40 md:hidden"
       >
         <div className="flex h-14 items-center justify-between border-b border-border pl-5 pr-3">
-          <span className="text-sm font-semibold tracking-tight text-slate-900">
-            AI Support
-          </span>
+          <Logo size="sm" />
           <button
             type="button"
             onClick={() => setOpen(false)}

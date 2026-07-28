@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isActive } from "./nav-items";
+import { Logo } from "@/components/ui/logo";
 
 /**
  * The navigation links themselves, shared by the desktop sidebar and the mobile
@@ -57,9 +58,7 @@ export function Sidebar() {
   return (
     <aside className="hidden w-60 shrink-0 border-r border-border bg-surface md:flex md:flex-col">
       <div className="flex h-14 items-center border-b border-border px-5">
-        <span className="text-sm font-semibold tracking-tight text-slate-900">
-          AI Support
-        </span>
+        <Logo size="sm" />
       </div>
 
       <nav aria-label="Main" className="flex-1 space-y-1 p-3">
