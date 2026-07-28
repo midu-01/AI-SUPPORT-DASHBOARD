@@ -43,6 +43,10 @@ export function CreateOrgDialog({ open, onClose }: CreateOrgDialogProps) {
     const el = ref.current;
     if (!el) return;
     if (open && !el.open) {
+      // Reset form state before opening so the dialog always starts clean.
+      setName("");
+      setFieldError(null);
+      setFormError(null);
       el.showModal();
       // Focus the input after the dialog opens so the user can type immediately
       // without a mouse click.  rAF defers until after the browser has painted
@@ -65,16 +69,6 @@ export function CreateOrgDialog({ open, onClose }: CreateOrgDialogProps) {
     return () => el.removeEventListener("cancel", handleCancel);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // ── Reset on open ────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (open) {
-      setName("");
-      setFieldError(null);
-      setFormError(null);
-    }
-  }, [open]);
 
   // ── Mutation ─────────────────────────────────────────────────────────────
 

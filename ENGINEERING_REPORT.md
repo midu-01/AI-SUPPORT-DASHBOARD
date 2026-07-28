@@ -8,7 +8,7 @@ TXT) whose metadata is stored in PostgreSQL, and search across their conversatio
 *or* message text. Every conversation and document is scoped to the user's currently selected
 organisation; switching organisations changes every view without logging out.
 
-**Current state:** the backend is complete and covered by **68 passing tests**. The Next.js
+**Current state:** the backend is complete and covered by **69 passing tests**. The Next.js
 frontend is **feature-complete against the updated brief**: registration, login, logout, the
 route guard, the authenticated shell, the dashboard, conversation CRUD with search and message
 threads, document upload, organisation creation, and organisation switching all work end to end
@@ -300,7 +300,7 @@ run twice in a row unchanged, and the fix is what let me verify everything else 
 
 **Largest gap first:**
 
-- **The frontend has no automated tests.** The backend has 68; the UI was verified by driving
+- **The frontend has no automated tests.** The backend has 69; the UI was verified by driving
   the real flow against a running API and a headless browser — signed-out redirect,
   valid-cookie render, forged-cookie rejection, the already-signed-in bounce off `/login`,
   no horizontal overflow at 375/768/1440 px, keyboard operation of the modals, accessible
@@ -372,7 +372,7 @@ stack would convert every claim in §6 from "I checked this once" into something
 The hydration bug found while polishing is the argument: it had been latent for three steps,
 it was invisible in review, and a browser found it in seconds.
 
-After that, in order: sniffing magic bytes on upload instead of trusting the client's header, and paginating the messages endpoint.
+After that, in order: paginating the messages endpoint, and adding refresh token rotation.
 
 **What part took the longest?**
 
@@ -408,7 +408,7 @@ them, which is also the order that makes the reasoning easiest to follow.
 | Backend models | `Organization`, `UserOrganization`; `org_id` on `Conversation` and `Document` |
 | Backend repositories | New `OrganizationRepository`; all list/create queries gain `org_id` filter |
 | Backend API | New `/api/v1/organizations` router; `get_active_org` dependency on all scoped routes |
-| Backend tests | 19 new tests in `test_organizations.py`; 6 new cross-org tests in `test_ownership.py`; all existing fixtures updated |
+| Backend tests | 14 new tests in `test_organizations.py`; 5 new cross-org tests in `test_ownership.py`; all existing fixtures updated |
 | Frontend types | `Organization`, `Membership`, `OrganizationCreated` added; `Conversation`, `Document`, `DashboardSummary` updated |
 | Frontend state | `OrgContext` + `OrgProvider` — active org stored in React context, `localStorage`, and a plain cookie |
 | Frontend API layer | `useOrgFetch` hook injects `X-Org-ID` on client calls; `serverApiFetch` reads the cookie and forwards it on server calls |
@@ -516,11 +516,11 @@ cache — every query re-fetches on the next render with the new org id.
 
 ### What the test suite covers
 
-The test count grew from 42 to **68**. New coverage:
+The test count grew from 42 to **69**. New coverage:
 
-- `tests/test_organizations.py` (19 tests) — create, list, add member, duplicate guard,
+- `tests/test_organizations.py` (14 tests) — create, list, add member, duplicate guard,
   admin-only enforcement, `get_active_org` dependency (missing header → 400, non-member → 404,
-  newly-invited member can immediately use the org)
+  newly-invited member can immediately use the org), default workspace created on registration
 - `tests/test_ownership.py` — 5 new cross-org tests: same user, two orgs — org-A data is
   invisible from org-B context; non-member org returns 404; missing header returns 400;
   a "protection is real" test that switches back to org-A and confirms the conversation is

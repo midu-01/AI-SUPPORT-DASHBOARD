@@ -31,6 +31,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -101,18 +102,28 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   //  - If the stored id is still in the list, keep it.
   //  - Otherwise fall back to the first org (handles the case where the user
   //    was removed from their previously-active org).
-  useEffect(() => {
-    if (orgs.length === 0) return;
-    const stored = orgs.find((o) => o.id === activeOrgId);
-    if (!stored) {
-      const first = orgs[0];
-      setActiveOrgId(first.id);
-      localStorage.setItem(LS_KEY, first.id);
-      writeOrgCookie(first.id);
-    }
-  }, [orgs, activeOrgId]);
+  //
+  // The resolved id is derived synchronously from state + query data.  The
+  // useEffect below only persists the fallback to external stores (localStorage
+  // + cookie) — it never calls setState, avoiding cascading renders.
+  const resolvedOrgId = (() => {
+    if (orgs.length === 0) return activeOrgId;
+    if (orgs.find((o) => o.id === activeOrgId)) return activeOrgId;
+    return orgs[0].id;
+  })();
 
-  const activeOrg = orgs.find((o) => o.id === activeOrgId) ?? null;
+  // Persist the resolved id to external stores when it differs from what the
+  // user explicitly chose (i.e. the fallback kicked in).
+  const prevResolvedRef = useRef(resolvedOrgId);
+  useEffect(() => {
+    if (resolvedOrgId && resolvedOrgId !== prevResolvedRef.current) {
+      prevResolvedRef.current = resolvedOrgId;
+      localStorage.setItem(LS_KEY, resolvedOrgId);
+      writeOrgCookie(resolvedOrgId);
+    }
+  }, [resolvedOrgId]);
+
+  const activeOrg = orgs.find((o) => o.id === resolvedOrgId) ?? null;
 
   const setActiveOrg = useCallback(
     (org: Organization) => {

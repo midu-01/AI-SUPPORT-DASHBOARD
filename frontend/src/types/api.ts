@@ -132,9 +132,11 @@ export type ApiErrorCode =
   | "ALREADY_MEMBER"
   | "ORG_REQUIRED"
   | "FILE_TYPE_NOT_ALLOWED"
+  | "FILE_TYPE_MISMATCH"
   | "FILE_TOO_LARGE"
   | "FILE_EMPTY"
   | "FILENAME_REQUIRED"
+  | "USER_NOT_FOUND"
   | "INTERNAL_ERROR"
   | (string & {});
 

@@ -164,8 +164,10 @@ Common HTTP status codes used:
 | `ALREADY_MEMBER` | 409 | User is already a member of the org |
 | `ORG_REQUIRED` | 400 | `X-Org-ID` header is missing |
 | `FILE_TYPE_NOT_ALLOWED` | 400 | Upload MIME type is not PDF, DOCX, or TXT |
+| `FILE_TYPE_MISMATCH` | 400 | File content does not match the declared MIME type (magic byte check) |
 | `FILE_TOO_LARGE` | 413 | Upload exceeds 10 MB |
 | `FILE_EMPTY` | 400 | Upload has zero bytes |
 | `FILENAME_REQUIRED` | 400 | Multipart part has no filename |
+| `USER_NOT_FOUND` | 404 | Target user does not exist (e.g. when adding a member) |
 | `VALIDATION_ERROR` | 422 | Pydantic validation failed; `errors` array present |
 | `INTERNAL_ERROR` | 500 | Unhandled exception (traceback logged, not returned) |

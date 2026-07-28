@@ -18,6 +18,7 @@ import { Card, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
+import { useOrg } from "@/lib/org-context";
 import { ApiError } from "@/lib/api-client";
 import { cn, formatBytes, formatDate } from "@/lib/utils";
 import type { Document } from "@/types/api";
@@ -44,13 +45,15 @@ const ICON_BY_MIME: Record<string, LucideIcon> = {
 
 export function DocumentManager() {
   const queryClient = useQueryClient();
+  const { orgId } = useOrg();
   const orgFetch = useOrgFetch();
 
   // ── List query ─────────────────────────────────────────────────────────────────
 
   const { data: documents, isLoading, isError, error } = useQuery({
-    queryKey: ["documents"],
+    queryKey: ["documents", { orgId }],
     queryFn: () => orgFetch<Document[]>("/documents"),
+    enabled: !!orgId,
   });
 
   // ── Upload ──────────────────────────────────────────────────────────────
@@ -70,7 +73,7 @@ export function DocumentManager() {
     },
     onSuccess: () => {
       setUploadError(null);
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents", { orgId }] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (err) => {
@@ -147,11 +150,11 @@ export function DocumentManager() {
     mutationFn: (id: string) =>
       orgFetch<void>(`/documents/${id}`, { method: "DELETE" }),
     onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: ["documents"] });
-      const previous = queryClient.getQueryData<Document[]>(["documents"]);
+      await queryClient.cancelQueries({ queryKey: ["documents", { orgId }] });
+      const previous = queryClient.getQueryData<Document[]>(["documents", { orgId }]);
       if (previous) {
         queryClient.setQueryData<Document[]>(
-          ["documents"],
+          ["documents", { orgId }],
           previous.filter((d) => d.id !== id),
         );
       }
@@ -159,12 +162,12 @@ export function DocumentManager() {
     },
     onError: (_err, _id, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(["documents"], context.previous);
+        queryClient.setQueryData(["documents", { orgId }], context.previous);
       }
     },
     onSettled: () => {
       setPendingDeleteId(null);
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents", { orgId }] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
