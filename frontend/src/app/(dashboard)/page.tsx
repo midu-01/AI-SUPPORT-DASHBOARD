@@ -1,7 +1,10 @@
+import { cookies } from "next/headers";
+
 import { RecentConversations } from "@/components/dashboard/recent-conversations";
 import { RecentDocuments } from "@/components/dashboard/recent-documents";
 import { StatRow } from "@/components/dashboard/stat-row";
 import { UserCard } from "@/components/dashboard/user-card";
+import { DashboardAwaitingOrg } from "@/components/dashboard/awaiting-org";
 import { serverApiFetch } from "@/lib/server-api";
 import type { DashboardSummary } from "@/types/api";
 
@@ -15,9 +18,33 @@ import type { DashboardSummary } from "@/types/api";
  * One request, not four. `/dashboard/summary` returns the user, the three
  * counts, and both recent lists together, so there is no client-side waterfall
  * and no partially-populated page while four calls resolve at different times.
+ *
+ * **Edge case: no active org cookie yet.** A freshly-registered user has an org
+ * (auto-created on registration) but the `activeOrgId` cookie is not set until
+ * `OrgProvider` mounts on the client. If we call `/dashboard/summary` without
+ * `X-Org-ID` the backend returns 400. Instead we render a lightweight client
+ * component that waits for the org context to initialise, then triggers a
+ * router refresh so this page re-renders with the cookie in place.
  */
 export default async function DashboardPage() {
-  const summary = await serverApiFetch<DashboardSummary>("/dashboard/summary");
+  const cookieStore = await cookies();
+  const activeOrgId = cookieStore.get("activeOrgId")?.value;
+
+  // No org cookie yet — the client-side OrgProvider will set it momentarily.
+  // Show a brief loading state instead of crashing with ORG_REQUIRED.
+  if (!activeOrgId) {
+    return <DashboardAwaitingOrg />;
+  }
+
+  let summary: DashboardSummary;
+  try {
+    summary = await serverApiFetch<DashboardSummary>("/dashboard/summary");
+  } catch {
+    // The cookie exists but the org may have been deleted, or the user was
+    // removed from it, or the dev database was reset.  Fall back to the
+    // awaiting-org screen which will re-resolve via OrgProvider.
+    return <DashboardAwaitingOrg />;
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
