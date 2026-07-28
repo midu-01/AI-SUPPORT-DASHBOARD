@@ -8,6 +8,10 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  MutationFeedback,
+  mutationErrorMessage,
+} from "@/components/ui/mutation-feedback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { useOrg } from "@/lib/org-context";
@@ -37,6 +41,7 @@ export function ConversationDetail({
   const { orgId } = useOrg();
   const conversationKey = ["conversation", orgId, id] as const;
   const messagesKey = ["messages", orgId, id] as const;
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   // ── Conversation query (seeded with server data) ────────────────────────
 
@@ -81,12 +86,16 @@ export function ConversationDetail({
       }
       return { previous };
     },
-    onError: (_err, _title, context) => {
+    onError: (error, _title, context) => {
       if (context?.previous) {
         queryClient.setQueryData(conversationKey, context.previous);
         setRenameValue(context.previous.title);
       }
+      setMutationError(
+        mutationErrorMessage(error, "Could not rename the conversation. Try again."),
+      );
     },
+    onSuccess: () => setMutationError(null),
     onSettled: () => {
       setIsRenaming(false);
       queryClient.invalidateQueries({ queryKey: conversationKey });
@@ -118,9 +127,16 @@ export function ConversationDetail({
     mutationFn: () =>
       orgFetch<void>(`/conversations/${id}`, { method: "DELETE" }),
     onSuccess: () => {
+      setMutationError(null);
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       router.replace("/conversations");
+    },
+    onError: (error) => {
+      setMutationError(
+        mutationErrorMessage(error, "Could not delete the conversation. Try again."),
+      );
+      setShowDeleteConfirm(false);
     },
   });
 
@@ -145,11 +161,17 @@ export function ConversationDetail({
         body: { content, role: "user" },
       }),
     onSuccess: () => {
+      setMutationError(null);
       setDraft("");
       queryClient.invalidateQueries({ queryKey: messagesKey });
       queryClient.invalidateQueries({ queryKey: conversationKey });
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (error) => {
+      setMutationError(
+        mutationErrorMessage(error, "Could not send the message. Try again."),
+      );
     },
   });
 
@@ -240,6 +262,11 @@ export function ConversationDetail({
       <p className="mt-1 text-sm text-slate-600">
         Created {formatDate(conversation.created_at)}
       </p>
+
+      <MutationFeedback
+        message={mutationError}
+        onDismiss={() => setMutationError(null)}
+      />
 
       {/* Message thread */}
       <Card className="mt-5 flex flex-col" style={{ minHeight: "24rem" }}>

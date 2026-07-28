@@ -9,6 +9,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  MutationFeedback,
+  mutationErrorMessage,
+} from "@/components/ui/mutation-feedback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
@@ -34,6 +38,7 @@ export function ConversationList() {
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const debouncedSearch = useDebounce(search);
 
   // Reset to page 1 when the search query changes.
@@ -58,9 +63,15 @@ export function ConversationList() {
         body: { title: "New conversation" },
       }),
     onSuccess: (created) => {
+      setMutationError(null);
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       router.push(`/conversations/${created.id}`);
+    },
+    onError: (error) => {
+      setMutationError(
+        mutationErrorMessage(error, "Could not create the conversation. Try again."),
+      );
     },
   });
 
@@ -87,12 +98,16 @@ export function ConversationList() {
 
       return { previous, key };
     },
-    onError: (_err, _id, context) => {
+    onError: (error, _id, context) => {
       // Roll back on failure.
       if (context?.previous) {
         queryClient.setQueryData(context.key, context.previous);
       }
+      setMutationError(
+        mutationErrorMessage(error, "Could not delete the conversation. Try again."),
+      );
     },
+    onSuccess: () => setMutationError(null),
     onSettled: () => {
       setPendingDeleteId(null);
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
@@ -152,6 +167,11 @@ export function ConversationList() {
           New conversation
         </Button>
       </div>
+
+      <MutationFeedback
+        message={mutationError}
+        onDismiss={() => setMutationError(null)}
+      />
 
       {/* Search */}
       <div className="relative mt-5">

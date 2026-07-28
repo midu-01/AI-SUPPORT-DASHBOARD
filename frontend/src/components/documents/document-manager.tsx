@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { Card, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { mutationErrorMessage } from "@/components/ui/mutation-feedback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { useOrg } from "@/lib/org-context";
@@ -160,11 +161,15 @@ export function DocumentManager() {
       }
       return { previous };
     },
-    onError: (_err, _id, context) => {
+    onError: (error, _id, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["documents", { orgId }], context.previous);
       }
+      setUploadError(
+        mutationErrorMessage(error, "Could not delete the document. Try again."),
+      );
     },
+    onSuccess: () => setUploadError(null),
     onSettled: () => {
       setPendingDeleteId(null);
       queryClient.invalidateQueries({ queryKey: ["documents", { orgId }] });
