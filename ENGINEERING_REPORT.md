@@ -11,7 +11,7 @@ organisation; switching organisations changes every view without logging out.
 **Current state:** the backend is covered by **69 passing integration tests**. The Next.js
 frontend implements registration, login, logout, the route guard, the authenticated shell,
 the dashboard, conversation CRUD with search and message threads, document upload,
-organisation creation, and organisation switching against the real API. **11 Playwright E2E
+organisation creation, and organisation switching against the real API. **12 Playwright E2E
 tests** cover the principal authentication and page smoke flows. The remaining verification
 gaps and the deliberately omitted upload progress bar are listed in §6.
 
@@ -304,11 +304,12 @@ later feature coverage trustworthy.
 
 **Largest gaps first:**
 
-- **Frontend automation is smoke-level rather than comprehensive.** There are 11 Playwright
+- **Frontend automation is smoke-level rather than comprehensive.** There are 12 Playwright
   E2E tests covering signed-out redirects, registration, login failures and success,
   signed-in auth-route redirects, dashboard rendering, mobile overflow at 375 px,
-  conversation creation, search-control availability, document-page rendering, and logout.
-  They do not yet verify organisation switching, search results, rename/delete, message
+  organisation switching with reload persistence, conversation creation, search-control
+  availability, document-page rendering, and logout. They do not yet verify dashboard data
+  isolation after an organisation switch, search results, rename/delete, message
   creation, real file uploads, document deletion, keyboard focus, or accessibility rules.
   There are also no frontend unit or component tests.
 - **No upload progress bar.** `fetch` cannot report request-body progress; a determinate bar
@@ -369,8 +370,8 @@ trusting the code that generated it.
 
 **If you had one additional day, what would you improve?**
 
-I would deepen the Playwright suite beyond its 11 smoke tests: first organisation switching
-and cross-org UI isolation, then conversation rename/delete and message history, then real
+I would deepen the Playwright suite beyond its 12 smoke tests: first dashboard cross-org data
+isolation, then conversation rename/delete and message history, then real
 PDF/DOCX/TXT upload/delete flows. I would also add focused component tests for validation,
 query-key scoping, and failure states, because they are faster and more deterministic than
 recreating every edge case through a browser. The hydration bug found while polishing is the

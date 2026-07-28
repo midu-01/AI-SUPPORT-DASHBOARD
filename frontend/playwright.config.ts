@@ -14,12 +14,13 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
   expect: { timeout: 5_000 },
-  fullyParallel: false, // tests share state (registered user), run sequentially
+  // Tests create independent users, but serial execution keeps load predictable
+  // for the single local backend and PostgreSQL test environment.
+  fullyParallel: false,
   retries: 0,
   reporter: "list",
   use: {
     baseURL: "http://localhost:3000",
-    // Persist cookies across tests in the same file so login carries over.
     storageState: undefined,
     trace: "on-first-retry",
   },

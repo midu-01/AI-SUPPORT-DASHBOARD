@@ -121,10 +121,12 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     if (resolvedOrgId !== activeOrgId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveOrgId(resolvedOrgId);
+      // Only the fallback path writes here. Explicit user choices are persisted
+      // synchronously in setActiveOrg; rewriting on every effect could let a
+      // stale pre-switch render overwrite that newer choice during refresh.
+      localStorage.setItem(LS_KEY, resolvedOrgId);
+      writeOrgCookie(resolvedOrgId);
     }
-    // Always keep external stores in sync regardless.
-    localStorage.setItem(LS_KEY, resolvedOrgId);
-    writeOrgCookie(resolvedOrgId);
   }, [orgs, resolvedOrgId, activeOrgId]);
 
   const activeOrg = orgs.find((o) => o.id === resolvedOrgId) ?? null;
@@ -134,13 +136,12 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       setActiveOrgId(org.id);
       localStorage.setItem(LS_KEY, org.id);
       writeOrgCookie(org.id);
-      // Invalidate everything scoped to the previous org.  `removeQueries` on
-      // the keys that carry org data would be more surgical, but the surface is
-      // large (conversations, documents, dashboard, messages) and will grow.
-      // Clearing the whole cache is safe: every query re-fetches on next render,
-      // and the org list itself is re-fetched too — which is fine because it is
-      // cheap and ensures the switcher reflects any membership changes.
-      queryClient.clear();
+      // Remove organization-scoped data while retaining the organization list.
+      // Clearing that list too creates a transient `orgs.length === 0` render,
+      // which can race with selection persistence and restore the old fallback.
+      queryClient.removeQueries({
+        predicate: (query) => query.queryKey[0] !== "organizations",
+      });
       // React Query invalidation only updates Client Components. Dashboard and
       // conversation-detail data are also fetched by Server Components, so
       // refresh the current route after writing the cookie. The refreshed

@@ -81,10 +81,14 @@ export function CreateOrgDialog({ open, onClose }: CreateOrgDialogProps) {
     onSuccess: (data) => {
       // Invalidate the org list so the switcher reflects the new org.
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      // Close before setActiveOrg triggers router.refresh(). Otherwise the
+      // current modal can remain open long enough to intercept interaction
+      // with the refreshed switcher.
+      ref.current?.close();
+      onClose();
       // Switch to the new org immediately — the user just created it, so it is
       // almost certainly where they want to work next.
       setActiveOrg(data.organization);
-      handleClose();
     },
     onError: (err) => {
       if (err instanceof ApiError) {

@@ -106,6 +106,52 @@ test.describe("Dashboard", () => {
   });
 });
 
+// ── Organisations ────────────────────────────────────────────────────────────
+
+test.describe("Organisations", () => {
+  test("user can switch organisations without logging out", async ({ page }) => {
+    await registerAndLogin(page);
+
+    const firstOrgName = `E2E First Org ${Date.now()}`;
+    const secondOrgName = `E2E Second Org ${Date.now()}`;
+
+    // Registration normally creates a default workspace, but this test creates
+    // its own named organizations so it is independent of existing seed/data
+    // policy and can assert exact option labels.
+    await page
+      .getByRole("button", {
+        name: /create your first organisation|create a new organisation/i,
+      })
+      .click();
+    await page.getByLabel(/organisation name/i).fill(firstOrgName);
+    await page.getByRole("button", { name: /^create$/i }).click();
+
+    await page
+      .getByRole("button", { name: /create a new organisation/i })
+      .click();
+    await page.getByLabel(/organisation name/i).fill(secondOrgName);
+    await page.getByRole("button", { name: /^create$/i }).click();
+
+    const switcher = page.getByLabel(/active organisation/i);
+    await expect(switcher).toBeVisible({ timeout: 10_000 });
+    await expect(switcher.locator("option")).toHaveCount(2);
+
+    await switcher.selectOption({ label: firstOrgName });
+    await expect(switcher.locator("option:checked")).toHaveText(firstOrgName);
+
+    // Switching changes workspace context, not authentication.
+    await expect(page).toHaveURL("/");
+    await expect(page.getByRole("button", { name: /sign out/i })).toBeVisible();
+
+    // The selected organization is persisted for Server Components and reloads.
+    await page.reload();
+    await expect(page.getByLabel(/active organisation/i)).toBeVisible();
+    await expect(
+      page.getByLabel(/active organisation/i).locator("option:checked"),
+    ).toHaveText(firstOrgName);
+  });
+});
+
 // ── Conversations ─────────────────────────────────────────────────────────────
 
 test.describe("Conversations", () => {
