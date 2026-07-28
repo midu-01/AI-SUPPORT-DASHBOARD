@@ -39,7 +39,7 @@ read. `documents.storage_path` is the one place that would change if this moved 
 |---|---|
 | Active-org transport | `X-Org-ID` request header. Chosen over a JWT claim (requires re-login to switch) and a separate cookie (implicit, awkward in SSR). The header is stateless, explicit, and carries no CSRF risk. |
 | Org membership model | Join table (`user_organizations`) with a `role` column (`member` / `admin`). Covers both simple membership checks and admin-only operations without a schema change. |
-| `org_id` nullability | `org_id` is nullable in the migration but `NOT NULL` in the models. The migration comment explains the 3-step backfill strategy; step 3 (SET NOT NULL) is deferred because the assessment database has no pre-existing rows. |
+| `org_id` migration | The first organisation migration adds nullable columns. The follow-up assigns legacy resources to the user's earliest membership, creates a default admin workspace only when that user has no membership, then sets both columns `NOT NULL`. |
 | Org creation | Any authenticated user can create an organisation and is automatically added as its admin. |
 | Member invitation | `POST /api/v1/organizations/{org_id}/members` is implemented and admin-gated on the backend. The frontend does not expose a member management screen — deferred as out of scope for this assessment. |
 | Org deletion | Not implemented. Deleting an org would cascade-delete all its conversations and documents, which is a destructive operation that warrants a separate, deliberate design decision. |

@@ -431,8 +431,8 @@ them, which is also the order that makes the reasoning easiest to follow.
 
 **New columns:**
 
-- `conversations.org_id` — FK → `organizations.id`, `ON DELETE CASCADE`, nullable in the
-  migration (see *Deferred items* below)
+- `conversations.org_id` — FK → `organizations.id`, `ON DELETE CASCADE`, introduced as
+  nullable for backfill and made `NOT NULL` by the follow-up migration
 - `documents.org_id` — same
 
 **Index changes:**
@@ -442,8 +442,11 @@ them, which is also the order that makes the reasoning easiest to follow.
   every list query now carries it.
 - `ix_documents_user_id` → `ix_documents_org_user` on `(org_id, user_id)`.
 
-The migration (`a1b2c3d4e5f6`) is fully reversible. `downgrade()` drops indexes, FK
-constraints, and columns in the correct reverse order and restores the original indexes.
+The organisation migration (`a1b2c3d4e5f6`) is fully reversible. Its follow-up
+(`b2c3d4e5f6a7`) assigns legacy resources to the user's earliest membership, creating a
+default admin workspace only when the user has none, then sets both resource columns
+`NOT NULL`. Its downgrade restores nullable columns before the earlier migration drops
+indexes, FK constraints, and columns in reverse order.
 
 ---
 
@@ -544,13 +547,11 @@ so a 404 caused by a missing fixture cannot masquerade as successful authorizati
 
 ### Deferred items
 
-**`org_id` NOT NULL enforcement.** The migration adds `org_id` as nullable on both
-`conversations` and `documents`. The production path is: (1) add nullable column — done;
-(2) backfill existing rows to a default org; (3) `ALTER COLUMN SET NOT NULL`. Step 3 is
-deferred because the assessment database has no pre-existing rows that need backfilling, and
-forcing NOT NULL in the migration would break any deployment that runs the migration before
-the backfill. The models declare `nullable=False` to reflect the intended steady-state; the
-migration is the honest description of what the database actually allows today.
+**Legacy-row backfill policy.** `org_id NOT NULL` is now enforced by a follow-up migration.
+For deterministic upgrades, pre-organisation resources are assigned to their owner's earliest
+membership; a default admin workspace is created only for a legacy user who has no membership.
+A production migration with externally defined tenant mappings could replace that policy, but
+the submitted migration preserves every legacy row and produces a valid final schema.
 
 **Member management UI.** `POST /api/v1/organizations/{org_id}/members` is implemented and
 admin-gated on the backend. The frontend exposes org creation and switching but not a member

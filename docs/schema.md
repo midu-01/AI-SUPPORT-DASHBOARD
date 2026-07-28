@@ -147,9 +147,9 @@ therefore a transactional constraint replacement rather than a non-transactional
 
 ## Migration Note
 
-The organization migration first introduced `conversations.org_id` and
-`documents.org_id` as nullable so existing installations could be backfilled before the
-constraint was tightened. A follow-up migration is responsible for verifying that no
-unscoped rows remain and setting both columns to `NOT NULL`, matching the SQLAlchemy
-models and the steady-state requirement that every resource belongs to exactly one
-organization.
+The organization migration first introduces `conversations.org_id` and
+`documents.org_id` as nullable. Follow-up migration `b2c3d4e5f6a7` assigns legacy
+resources to each user's earliest organization membership. If a legacy user has no
+membership, it creates a default workspace with that user as admin. It then sets both
+columns to `NOT NULL`, so the final migrated schema matches the SQLAlchemy models and
+enforces that every resource belongs to exactly one organization.
