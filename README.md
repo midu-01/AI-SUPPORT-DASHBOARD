@@ -80,9 +80,21 @@ and keyboard-reachable controls with visible focus rings.
 |---|---|
 | ![Dashboard](docs/screenshots/dashboard.png) | ![Conversations](docs/screenshots/conversations.png) |
 
-| Documents | Mobile drawer |
+| Documents | Login |
 |---|---|
-| ![Documents](docs/screenshots/documents.png) | ![Mobile navigation drawer](docs/screenshots/mobile-drawer.png) |
+| ![Documents](docs/screenshots/documents.png) | ![Login](docs/screenshots/login.png) |
+
+| Create an Account | Mobile drawer |
+|---|---|
+| ![Create an Account](docs/screenshots/create-an-account.png) | ![Mobile navigation drawer](docs/screenshots/mobile-drawer.png) |
+
+| Mobile Dashboard | Mobile Conversations |
+|---|---|
+| ![Mobile Dashboard](docs/screenshots/mobile-dashboard.png) | ![Mobile Conversations](docs/screenshots/mobile-conversations.png) |
+
+| Mobile Documents | |
+|---|---|
+| ![Mobile Documents](docs/screenshots/mobile-documents.png) | |
 
 </details>
 
