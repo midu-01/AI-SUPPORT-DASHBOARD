@@ -127,6 +127,15 @@ export function ConversationDetail({
 
   const [draft, setDraft] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize the textarea as the user types.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
 
   const send = useMutation({
     mutationFn: (content: string) =>
@@ -279,13 +288,21 @@ export function ConversationDetail({
         {/* Composer */}
         <form
           onSubmit={handleSend}
-          className="flex items-center gap-2 border-t border-border p-4"
+          className="flex items-end gap-2 border-t border-border p-4"
         >
-          <input
+          <textarea
+            ref={textareaRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Type a message…"
-            className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend(e as unknown as React.FormEvent);
+              }
+            }}
+            placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
+            rows={1}
+            className="flex-1 resize-none overflow-hidden rounded-lg border border-border bg-surface px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
             aria-label="Message"
             disabled={send.isPending}
           />

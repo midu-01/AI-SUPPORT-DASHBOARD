@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageSquarePlus, Search, Trash2 } from "lucide-react";
+import { MessageSquarePlus, Search, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -168,11 +168,21 @@ export function ConversationList() {
             setPage(1);
           }}
           className={cn(
-            "block w-full rounded-lg border border-border bg-surface py-2 pl-10 pr-3 text-sm text-slate-900",
+            "block w-full rounded-lg border border-border bg-surface py-2 pl-10 pr-8 text-sm text-slate-900",
             "placeholder:text-slate-400",
           )}
           aria-label="Search conversations"
         />
+        {search && (
+          <button
+            type="button"
+            onClick={() => { setSearch(""); setPage(1); }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            aria-label="Clear search"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        )}
       </div>
 
       {/* List */}
