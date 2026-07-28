@@ -10,6 +10,7 @@ import { Card, CardBody, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
+import { useOrg } from "@/lib/org-context";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 import type { Conversation, Message } from "@/types/api";
 
@@ -33,11 +34,14 @@ export function ConversationDetail({
   const router = useRouter();
   const queryClient = useQueryClient();
   const orgFetch = useOrgFetch();
+  const { orgId } = useOrg();
+  const conversationKey = ["conversation", orgId, id] as const;
+  const messagesKey = ["messages", orgId, id] as const;
 
   // ── Conversation query (seeded with server data) ────────────────────────
 
   const { data: conversation } = useQuery({
-    queryKey: ["conversation", id],
+    queryKey: conversationKey,
     queryFn: () => orgFetch<Conversation>(`/conversations/${id}`),
     initialData: initial,
   });
@@ -45,7 +49,7 @@ export function ConversationDetail({
   // ── Messages query (seeded with server data) ───────────────────────────
 
   const { data: messages = [] } = useQuery({
-    queryKey: ["messages", id],
+    queryKey: messagesKey,
     queryFn: () => orgFetch<Message[]>(`/conversations/${id}/messages`),
     initialData: initialMessages,
   });
@@ -67,13 +71,10 @@ export function ConversationDetail({
         body: { title },
       }),
     onMutate: async (title) => {
-      await queryClient.cancelQueries({ queryKey: ["conversation", id] });
-      const previous = queryClient.getQueryData<Conversation>([
-        "conversation",
-        id,
-      ]);
+      await queryClient.cancelQueries({ queryKey: conversationKey });
+      const previous = queryClient.getQueryData<Conversation>(conversationKey);
       if (previous) {
-        queryClient.setQueryData<Conversation>(["conversation", id], {
+        queryClient.setQueryData<Conversation>(conversationKey, {
           ...previous,
           title,
         });
@@ -82,13 +83,13 @@ export function ConversationDetail({
     },
     onError: (_err, _title, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(["conversation", id], context.previous);
+        queryClient.setQueryData(conversationKey, context.previous);
         setRenameValue(context.previous.title);
       }
     },
     onSettled: () => {
       setIsRenaming(false);
-      queryClient.invalidateQueries({ queryKey: ["conversation", id] });
+      queryClient.invalidateQueries({ queryKey: conversationKey });
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -145,8 +146,8 @@ export function ConversationDetail({
       }),
     onSuccess: () => {
       setDraft("");
-      queryClient.invalidateQueries({ queryKey: ["messages", id] });
-      queryClient.invalidateQueries({ queryKey: ["conversation", id] });
+      queryClient.invalidateQueries({ queryKey: messagesKey });
+      queryClient.invalidateQueries({ queryKey: conversationKey });
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
