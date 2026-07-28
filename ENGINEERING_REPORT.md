@@ -8,12 +8,12 @@ TXT) whose metadata is stored in PostgreSQL, and search across their conversatio
 *or* message text. Every conversation and document is scoped to the user's currently selected
 organisation; switching organisations changes every view without logging out.
 
-**Current state:** the backend is complete and covered by **69 passing tests**. The Next.js
-frontend is **feature-complete against the updated brief**: registration, login, logout, the
-route guard, the authenticated shell, the dashboard, conversation CRUD with search and message
-threads, document upload, organisation creation, and organisation switching all work end to end
-against the real API. What is *not* there is automated frontend tests and an upload progress
-bar; §6 says so plainly rather than letting a screenshot imply otherwise.
+**Current state:** the backend is covered by **69 passing integration tests**. The Next.js
+frontend implements registration, login, logout, the route guard, the authenticated shell,
+the dashboard, conversation CRUD with search and message threads, document upload,
+organisation creation, and organisation switching against the real API. **11 Playwright E2E
+tests** cover the principal authentication and page smoke flows. The remaining verification
+gaps and the deliberately omitted upload progress bar are listed in §6.
 
 "AI-ready" is interpreted as a requirement on the *data model*, not on behaviour. No LLM is
 called anywhere. Instead `messages.role` (`user` / `assistant`) and `documents.status`
@@ -38,13 +38,15 @@ ai-support-dashboard/
 | Layer | Responsibility |
 |---|---|
 | `api/v1/` | HTTP routing, auth dependency, request/response validation (Pydantic v2) |
-| `repositories/` | Every database query lives here — routers never build SQL |
+| `repositories/` | Reusable resource queries and persistence operations |
 | `models/` | SQLAlchemy ORM models, indexes, constraints |
 | `core/` | Settings, security helpers, shared dependencies, error handling |
 | `alembic/` | Migrations — the only thing that creates or changes schema |
 
-A request flows **Router → Repository → model**. There is no service layer; see Decision 3
-for why, and for the point at which I would add one.
+Most requests flow **Router → Repository → model**. The dashboard is the deliberate exception:
+its route builds a small set of read-only aggregate queries because they compose several
+resources and are used by one endpoint only. There is no service layer; see Decision 3 for
+why, and for the point at which I would add one.
 
 ### Cross-cutting concerns
 
@@ -63,9 +65,10 @@ removing either one does not fail the other's tests. Cross-user and cross-org ac
 return **404, not 403** — a 403 confirms the resource exists, which lets someone enumerate
 valid IDs without ever reading one.
 
-**Migrations are the single source of schema truth**, including in tests: the suite builds the
-test database by running the real migration rather than `create_all`, so a migration that
-drifts from the models fails the build instead of shipping.
+**Tests exercise the migrated schema.** The suite builds the test database by running Alembic
+rather than `create_all`, so schema-dependent behavior is tested against what is actually
+deployed. This does not by itself prove full model/migration parity; `alembic check` is the
+separate validation for drift such as a nullability mismatch.
 
 ### Frontend
 
@@ -75,12 +78,11 @@ live at `/login` and `/`, not `/auth/login`.
 
 Server Components are the default and fetch on the server, so the signed-in user's name is in
 the first HTML response rather than arriving after a client round-trip. `"use client"` is
-applied only where something is genuinely interactive: the two auth forms, the nav (it needs
-`usePathname`), the sign-out button, the three feature components, and the error boundaries
-(React's are class-based and cannot run on the server). **The dashboard has no `"use client"`
-anywhere beneath it** — nothing on it is interactive beyond links, so none of it ships as
-JavaScript. Where a page is interactive, the server still fetches first and passes the result
-in as `initialData`, so React Query hydrates from real data instead of flashing a skeleton.
+applied where something is interactive: auth forms, navigation, sign-out, active-organisation
+state, feature components, the dashboard's organisation-cookie bootstrap fallback, and error
+boundaries. The successful dashboard summary is rendered on the server. Conversation detail
+is also server-fetched and passed to React Query as `initialData`; the conversation list and
+document manager fetch on the client because their filters and mutations are client-driven.
 
 React Query handles server-state caching and invalidation instead of Redux or Zustand; almost
 all state here is server state, so a global store would add boilerplate without solving a
@@ -257,8 +259,9 @@ own transactions; and login reused the registration schema, so signing in demand
 - Ran `alembic downgrade base` then `upgrade head`, because an untested `downgrade()` is
   usually broken.
 - Exercised the API over HTTP against a running server, not only through the test client.
-- For the security-relevant test, deliberately removed the ownership check and confirmed the
-  test **failed**. A test that passes for the wrong reason is worse than no test.
+- For security-relevant behavior, paired negative checks (the wrong user or organisation gets
+  404) with positive controls (the owner in the correct organisation can read the same ID),
+  reducing the chance that a test passes only because the fixture never created the resource.
 
 ---
 
@@ -291,22 +294,23 @@ its writes were already durable — tests were only passing in a specific order 
 broken on a second run. Isolation is now `TRUNCATE` before each test, and the suite passes
 repeatedly.
 
-**Why it was worth the time:** the suite went from 3 tests that had never once run to 42 that
-run twice in a row unchanged, and the fix is what let me verify everything else in this report.
+**Why it was worth the time:** the suite first went from 3 tests that had never once run to 42
+repeatable tests; it now contains 69. The event-loop and isolation fixes are what made the
+later feature coverage trustworthy.
 
 ---
 
 ## 6. Known Limitations
 
-**Largest gap first:**
+**Largest gaps first:**
 
-- **The frontend has no automated tests.** The backend has 69; the UI was verified by driving
-  the real flow against a running API and a headless browser — signed-out redirect,
-  valid-cookie render, forged-cookie rejection, the already-signed-in bounce off `/login`,
-  no horizontal overflow at 375/768/1440 px, keyboard operation of the modals, accessible
-  names on every control, and a clean console on all four signed-in routes. **That is a check
-  I ran, not a check that runs.** A regression here would not fail anything, and this is the
-  project's largest remaining gap.
+- **Frontend automation is smoke-level rather than comprehensive.** There are 11 Playwright
+  E2E tests covering signed-out redirects, registration, login failures and success,
+  signed-in auth-route redirects, dashboard rendering, mobile overflow at 375 px,
+  conversation creation, search-control availability, document-page rendering, and logout.
+  They do not yet verify organisation switching, search results, rename/delete, message
+  creation, real file uploads, document deletion, keyboard focus, or accessibility rules.
+  There are also no frontend unit or component tests.
 - **No upload progress bar.** `fetch` cannot report request-body progress; a determinate bar
   needs `XMLHttpRequest` or a streaming request body. The upload zone shows an indeterminate
   "Uploading…" state instead of a percentage that would have to be invented.
@@ -365,12 +369,13 @@ trusting the code that generated it.
 
 **If you had one additional day, what would you improve?**
 
-Frontend tests. The UI is now the only part of the project with no automated coverage, and
-the checks I ran by hand — the auth redirects, the modals' keyboard behaviour, the breakpoint
-sweep — are exactly the kind that quietly stop being true. Playwright against the running
-stack would convert every claim in §6 from "I checked this once" into something CI enforces.
-The hydration bug found while polishing is the argument: it had been latent for three steps,
-it was invisible in review, and a browser found it in seconds.
+I would deepen the Playwright suite beyond its 11 smoke tests: first organisation switching
+and cross-org UI isolation, then conversation rename/delete and message history, then real
+PDF/DOCX/TXT upload/delete flows. I would also add focused component tests for validation,
+query-key scoping, and failure states, because they are faster and more deterministic than
+recreating every edge case through a browser. The hydration bug found while polishing is the
+argument for browser coverage: it had been invisible in review, and a browser found it in
+seconds.
 
 After that, in order: paginating the messages endpoint, and adding refresh token rotation.
 
@@ -532,8 +537,8 @@ The test count grew from 42 to **69**. New coverage:
   lists capped at 5, authentication required, org header required, org-scoped counts reset
   on switch, `current_org` present in response
 
-Every new protection test is verified to fail when the protection is removed. A test that
-passes for the wrong reason is worse than no test.
+The cross-org tests pair denied requests with positive controls in the correct organisation,
+so a 404 caused by a missing fixture cannot masquerade as successful authorization coverage.
 
 ---
 
