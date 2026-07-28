@@ -380,7 +380,18 @@ recreating every edge case through a browser. The hydration bug found while poli
 argument for browser coverage: it had been invisible in review, and a browser found it in
 seconds.
 
-After that, in order: paginating the messages endpoint, and adding refresh token rotation.
+After that, in order:
+
+1. **Accept-invitation flow.** The current invite is immediate — an admin adds a user and
+   they are a member instantly. A real product would instead create a *pending invitation*
+   that the target user must accept. This needs an `invitations` table
+   (`id`, `org_id`, `inviter_id`, `invitee_email`, `role`, `status`, `created_at`,
+   `expires_at`), a `POST /invitations/{id}/accept` endpoint, an email notification (or
+   at minimum an in-app notification badge), and an expiry policy. The current design was
+   chosen because it is correct and complete for the scope — every invite results in a
+   working membership — and the accept step is additive rather than a rework.
+2. Paginating the messages endpoint.
+3. Adding refresh token rotation.
 
 **What part took the longest?**
 
@@ -415,12 +426,12 @@ them, which is also the order that makes the reasoning easiest to follow.
 | Database | 2 new tables, 2 new FK columns, 2 new composite indexes |
 | Backend models | `Organization`, `UserOrganization`; `org_id` on `Conversation` and `Document` |
 | Backend repositories | New `OrganizationRepository`; all list/create queries gain `org_id` filter |
-| Backend API | New `/api/v1/organizations` router; `get_active_org` dependency on all scoped routes |
+| Backend API | New `/api/v1/organizations` router (CRUD, list members, invite by email); `get_active_org` dependency on all scoped routes |
 | Backend tests | 14 new tests in `test_organizations.py`; 5 new cross-org tests in `test_ownership.py`; all existing fixtures updated |
 | Frontend types | `Organization`, `Membership`, `OrganizationCreated` added; `Conversation`, `Document`, `DashboardSummary` updated |
 | Frontend state | `OrgContext` + `OrgProvider` — active org stored in React context, `localStorage`, and a plain cookie |
 | Frontend API layer | `useOrgFetch` hook injects `X-Org-ID` on client calls; `serverApiFetch` reads the cookie and forwards it on server calls |
-| Frontend UI | `OrgSwitcher` dropdown + `CreateOrgDialog` modal in the topbar |
+| Frontend UI | `OrgSwitcher` dropdown + `CreateOrgDialog` modal in the topbar; `MembersContent` page with `InviteMemberDialog` |
 
 ---
 
@@ -556,11 +567,15 @@ membership; a default admin workspace is created only for a legacy user who has 
 A production migration with externally defined tenant mappings could replace that policy, but
 the submitted migration preserves every legacy row and produces a valid final schema.
 
-**Member management UI.** `POST /api/v1/organizations/{org_id}/members` is implemented and
-admin-gated on the backend. The frontend exposes org creation and switching but not a member
-invitation screen. The backend endpoint is fully functional and testable via Postman or
-`curl`; the UI is deferred because the brief does not require it and the time was better
-spent on correctness and test coverage.
+**Member management UI.** The frontend now includes a dedicated **Members** page
+(`/members`) and an **Invite member** dialog. Admins can invite registered users by email
+address, choose a role (member or admin), and see the full member list with names, emails,
+roles, and join dates. The backend gained two new endpoints to support this:
+`GET /organizations/{org_id}/members` (list members with user details) and
+`POST /organizations/{org_id}/members/invite` (invite by email, admin-only). The invite
+flow is immediate — the target user is added to the organisation as soon as the admin
+submits the form, with no pending/accept step (see §7 for the accept-invitation design
+that would follow with more time).
 
 **Org deletion.** Not implemented. Deleting an org would cascade-delete all its
 conversations and documents — a destructive operation that warrants a deliberate design
