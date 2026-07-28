@@ -31,7 +31,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -103,25 +102,28 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   //  - Otherwise fall back to the first org (handles the case where the user
   //    was removed from their previously-active org).
   //
-  // The resolved id is derived synchronously from state + query data.  The
-  // useEffect below only persists the fallback to external stores (localStorage
-  // + cookie) — it never calls setState, avoiding cascading renders.
+  // The resolved id is derived synchronously from state + query data so that
+  // React never renders a stale org.
   const resolvedOrgId = (() => {
     if (orgs.length === 0) return activeOrgId;
     if (orgs.find((o) => o.id === activeOrgId)) return activeOrgId;
     return orgs[0].id;
   })();
 
-  // Persist the resolved id to external stores when it differs from what the
-  // user explicitly chose (i.e. the fallback kicked in).
-  const prevResolvedRef = useRef(resolvedOrgId);
+  // When the fallback kicks in (stored id not in the list), sync state and
+  // external stores so everything agrees on the same org id.  The guard
+  // `resolvedOrgId !== activeOrgId` ensures this only fires when the derived
+  // value actually differs from the explicit choice — not on every render.
   useEffect(() => {
-    if (resolvedOrgId && resolvedOrgId !== prevResolvedRef.current) {
-      prevResolvedRef.current = resolvedOrgId;
-      localStorage.setItem(LS_KEY, resolvedOrgId);
-      writeOrgCookie(resolvedOrgId);
+    if (orgs.length === 0 || !resolvedOrgId) return;
+    if (resolvedOrgId !== activeOrgId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveOrgId(resolvedOrgId);
     }
-  }, [resolvedOrgId]);
+    // Always keep external stores in sync regardless.
+    localStorage.setItem(LS_KEY, resolvedOrgId);
+    writeOrgCookie(resolvedOrgId);
+  }, [orgs, resolvedOrgId, activeOrgId]);
 
   const activeOrg = orgs.find((o) => o.id === resolvedOrgId) ?? null;
 
