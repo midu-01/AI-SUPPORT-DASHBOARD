@@ -150,6 +150,128 @@ test.describe("Organisations", () => {
       page.getByLabel(/active organisation/i).locator("option:checked"),
     ).toHaveText(firstOrgName);
   });
+
+  test("dashboard data is isolated by active organisation", async ({ page }) => {
+    await registerAndLogin(page);
+
+    const firstOrgName = `E2E Data Org A ${Date.now()}`;
+    const secondOrgName = `E2E Data Org B ${Date.now()}`;
+
+    // Seed through the real API using the browser's authenticated cookie. The
+    // behavior under test is dashboard rendering/switching, not org creation.
+    const seeded = await page.evaluate(
+      async ({ firstName, secondName }) => {
+        const api = "http://localhost:8000/api/v1";
+        const createOrg = async (name: string) => {
+          const response = await fetch(`${api}/organizations`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+          });
+          if (!response.ok) throw new Error(`Create org failed: ${response.status}`);
+          return response.json() as Promise<{
+            organization: { id: string; name: string };
+          }>;
+        };
+
+        const first = await createOrg(firstName);
+        const second = await createOrg(secondName);
+        return { firstId: first.organization.id, secondId: second.organization.id };
+      },
+      { firstName: firstOrgName, secondName: secondOrgName },
+    );
+
+    // Reload so OrgProvider fetches the newly seeded memberships, then select
+    // organization A through the real UI. This synchronizes React context,
+    // localStorage, the SSR cookie, and the Server Component in one action.
+    await page.reload();
+    const switcher = page.getByLabel(/active organisation/i);
+    await expect(switcher).toBeVisible({ timeout: 10_000 });
+    await Promise.all([
+      page.waitForLoadState("domcontentloaded"),
+      switcher.selectOption(seeded.firstId),
+    ]);
+    await expect(
+      page.getByLabel(/active organisation/i).locator("option:checked"),
+    ).toHaveText(firstOrgName);
+
+    // Seed one record after the UI, localStorage, and SSR cookie all agree on A.
+    await page.evaluate(async ({ orgId }) => {
+      const response = await fetch("http://localhost:8000/api/v1/conversations", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Org-ID": orgId,
+        },
+        body: JSON.stringify({ title: "Org A private conversation" }),
+      });
+      if (!response.ok) {
+        throw new Error(`Create conversation failed: ${response.status}`);
+      }
+    }, { orgId: seeded.firstId });
+
+    const orgASummary = await page.evaluate(async ({ orgId }) => {
+      const response = await fetch("http://localhost:8000/api/v1/dashboard/summary", {
+        credentials: "include",
+        headers: { "X-Org-ID": orgId },
+      });
+      if (!response.ok) {
+        throw new Error(`Dashboard summary failed: ${response.status}`);
+      }
+      return response.json() as Promise<{
+        recent_conversations: Array<{ title: string }>;
+      }>;
+    }, { orgId: seeded.firstId });
+    expect(orgASummary.recent_conversations.map((item) => item.title)).toContain(
+      "Org A private conversation",
+    );
+    await expect
+      .poll(async () => {
+        const cookies = await page.context().cookies();
+        return cookies.find((cookie) => cookie.name === "activeOrgId")?.value;
+      })
+      .toBe(seeded.firstId);
+    await page.goto("/");
+    await expect(
+      page.getByText("Org A private conversation", { exact: true }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    await Promise.all([
+      page.waitForLoadState("domcontentloaded"),
+      page.getByLabel(/active organisation/i).selectOption(seeded.secondId),
+    ]);
+    await expect
+      .poll(async () => {
+        const cookies = await page.context().cookies();
+        return cookies.find((cookie) => cookie.name === "activeOrgId")?.value;
+      })
+      .toBe(seeded.secondId);
+    await page.goto("/");
+    await expect(page.getByText("No conversations yet.")).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(
+      page.getByText("Org A private conversation", { exact: true }),
+    ).toHaveCount(0);
+
+    // Switching back must fetch organization A's dashboard data again.
+    await Promise.all([
+      page.waitForLoadState("domcontentloaded"),
+      page.getByLabel(/active organisation/i).selectOption(seeded.firstId),
+    ]);
+    await expect
+      .poll(async () => {
+        const cookies = await page.context().cookies();
+        return cookies.find((cookie) => cookie.name === "activeOrgId")?.value;
+      })
+      .toBe(seeded.firstId);
+    await page.goto("/");
+    await expect(
+      page.getByText("Org A private conversation", { exact: true }),
+    ).toBeVisible({ timeout: 10_000 });
+  });
 });
 
 // ── Conversations ─────────────────────────────────────────────────────────────

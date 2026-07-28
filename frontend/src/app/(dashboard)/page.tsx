@@ -1,12 +1,7 @@
 import { cookies } from "next/headers";
 
-import { RecentConversations } from "@/components/dashboard/recent-conversations";
-import { RecentDocuments } from "@/components/dashboard/recent-documents";
-import { StatRow } from "@/components/dashboard/stat-row";
-import { UserCard } from "@/components/dashboard/user-card";
 import { DashboardAwaitingOrg } from "@/components/dashboard/awaiting-org";
-import { serverApiFetch } from "@/lib/server-api";
-import type { DashboardSummary } from "@/types/api";
+import { DashboardContent } from "@/components/dashboard/dashboard-content";
 
 /**
  * Dashboard home.
@@ -36,42 +31,5 @@ export default async function DashboardPage() {
     return <DashboardAwaitingOrg />;
   }
 
-  let summary: DashboardSummary;
-  try {
-    summary = await serverApiFetch<DashboardSummary>("/dashboard/summary");
-  } catch {
-    // The cookie exists but the org may have been deleted, or the user was
-    // removed from it, or the dev database was reset.  Fall back to the
-    // awaiting-org screen which will re-resolve via OrgProvider.
-    return <DashboardAwaitingOrg />;
-  }
-
-  return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-          {/* First name only — "Welcome back, Ada" reads better than the full
-              legal name, and long names would wrap the heading. */}
-          Welcome back, {summary.user.full_name.split(" ")[0]}
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Your conversations and documents at a glance.
-        </p>
-      </div>
-
-      <StatRow
-        conversations={summary.total_conversations}
-        documents={summary.total_documents}
-        messages={summary.total_messages}
-      />
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <RecentConversations items={summary.recent_conversations} />
-          <RecentDocuments items={summary.recent_documents} />
-        </div>
-        <UserCard user={summary.user} />
-      </div>
-    </div>
-  );
+  return <DashboardContent />;
 }

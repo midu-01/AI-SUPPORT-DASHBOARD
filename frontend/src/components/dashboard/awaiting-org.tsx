@@ -15,19 +15,19 @@ import { useOrg } from "@/lib/org-context";
  * calls `router.refresh()` exactly once so the Server Component re-renders
  * with the cookie in place.
  */
-export function DashboardAwaitingOrg() {
+export function DashboardAwaitingOrg({ refreshServer = true }: { refreshServer?: boolean }) {
   const { orgId, isLoading } = useOrg();
   const router = useRouter();
   const refreshed = useRef(false);
 
   useEffect(() => {
-    if (!isLoading && orgId && !refreshed.current) {
+    if (refreshServer && !isLoading && orgId && !refreshed.current) {
       refreshed.current = true;
       // Small delay to ensure the cookie has been written by OrgProvider
       // before the server re-renders.
       setTimeout(() => router.refresh(), 100);
     }
-  }, [orgId, isLoading, router]);
+  }, [orgId, isLoading, refreshServer, router]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">

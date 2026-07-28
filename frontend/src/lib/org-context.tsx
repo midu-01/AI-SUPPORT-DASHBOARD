@@ -35,7 +35,6 @@ import {
   type ReactNode,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 
 import { apiFetch } from "./api-client";
 import type { Organization } from "@/types/api";
@@ -83,7 +82,6 @@ const OrgContext = createContext<OrgContextValue | null>(null);
 
 export function OrgProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   // Restore the last-used org id from localStorage on first render.
   const [activeOrgId, setActiveOrgId] = useState<string | null>(() => {
@@ -142,13 +140,10 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       queryClient.removeQueries({
         predicate: (query) => query.queryKey[0] !== "organizations",
       });
-      // React Query invalidation only updates Client Components. Dashboard and
-      // conversation-detail data are also fetched by Server Components, so
-      // refresh the current route after writing the cookie. The refreshed
-      // server request now forwards the new org id as X-Org-ID.
-      router.refresh();
+      // Client views use org-keyed React Query caches and re-render immediately.
+      // Server-rendered detail routes read this cookie on their next navigation.
     },
-    [queryClient, router],
+    [queryClient],
   );
 
   return (

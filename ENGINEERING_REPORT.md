@@ -11,7 +11,7 @@ organisation; switching organisations changes every view without logging out.
 **Current state:** the backend is covered by **69 passing integration tests**. The Next.js
 frontend implements registration, login, logout, the route guard, the authenticated shell,
 the dashboard, conversation CRUD with search and message threads, document upload,
-organisation creation, and organisation switching against the real API. **12 Playwright E2E
+organisation creation, and organisation switching against the real API. **13 Playwright E2E
 tests** cover the principal authentication and page smoke flows. The remaining verification
 gaps and the deliberately omitted upload progress bar are listed in §6.
 
@@ -79,10 +79,12 @@ live at `/login` and `/`, not `/auth/login`.
 Server Components are the default and fetch on the server, so the signed-in user's name is in
 the first HTML response rather than arriving after a client round-trip. `"use client"` is
 applied where something is interactive: auth forms, navigation, sign-out, active-organisation
-state, feature components, the dashboard's organisation-cookie bootstrap fallback, and error
-boundaries. The successful dashboard summary is rendered on the server. Conversation detail
-is also server-fetched and passed to React Query as `initialData`; the conversation list and
-document manager fetch on the client because their filters and mutations are client-driven.
+state, feature components, the dashboard, and error boundaries. The dashboard waits for the
+server-readable organization cookie on its first render, then uses an org-keyed React Query
+request so an in-place organization switch cannot retain a stale Server Component payload.
+Conversation detail is server-fetched and passed to React Query as `initialData`; the
+conversation list and document manager fetch on the client because their filters and
+mutations are client-driven.
 
 React Query handles server-state caching and invalidation instead of Redux or Zustand; almost
 all state here is server state, so a global store would add boilerplate without solving a
@@ -304,12 +306,12 @@ later feature coverage trustworthy.
 
 **Largest gaps first:**
 
-- **Frontend automation is smoke-level rather than comprehensive.** There are 12 Playwright
+- **Frontend automation is smoke-level rather than comprehensive.** There are 13 Playwright
   E2E tests covering signed-out redirects, registration, login failures and success,
   signed-in auth-route redirects, dashboard rendering, mobile overflow at 375 px,
-  organisation switching with reload persistence, conversation creation, search-control
-  availability, document-page rendering, and logout. They do not yet verify dashboard data
-  isolation after an organisation switch, search results, rename/delete, message
+  organisation switching with reload persistence, dashboard cross-org data isolation,
+  conversation creation, search-control availability, document-page rendering, and logout.
+  They do not yet verify search results, rename/delete, message
   creation, real file uploads, document deletion, keyboard focus, or accessibility rules.
   There are also no frontend unit or component tests.
 - **No upload progress bar.** `fetch` cannot report request-body progress; a determinate bar
@@ -370,8 +372,8 @@ trusting the code that generated it.
 
 **If you had one additional day, what would you improve?**
 
-I would deepen the Playwright suite beyond its 12 smoke tests: first dashboard cross-org data
-isolation, then conversation rename/delete and message history, then real
+I would deepen the Playwright suite beyond its 13 tests: first conversation rename/delete and
+message history, then real
 PDF/DOCX/TXT upload/delete flows. I would also add focused component tests for validation,
 query-key scoping, and failure states, because they are faster and more deterministic than
 recreating every edge case through a browser. The hydration bug found while polishing is the
@@ -506,14 +508,14 @@ layers work together:
 |---|---|
 | React context (`OrgContext`) | In-memory; drives the `OrgSwitcher` UI and `useOrgFetch` |
 | `localStorage` | Survives page refresh; restored on mount |
-| Plain (non-httpOnly) cookie | Readable by Next.js Server Components via `serverApiFetch` |
+| Plain (non-httpOnly) cookie | Readable by Next.js Server Components via `serverApiFetch` and used to bootstrap dashboard context |
 
-The cookie is the key insight. `localStorage` is not readable on the server, so Server
-Components (the dashboard page, the conversation detail page) would have no way to know
-which org to scope their fetches to. A plain cookie is forwarded with every request and
-readable via `cookies()` in `serverApiFetch`, which then sets `X-Org-ID` on the outgoing
-fetch. The cookie carries no secret — the backend validates membership on every request
-regardless.
+The cookie is the key insight. `localStorage` is not readable on the server, so the dashboard
+bootstrap and server-rendered conversation detail would otherwise have no organization
+context. A plain cookie is readable via `cookies()`; `serverApiFetch` forwards it as
+`X-Org-ID` for server calls, while the dashboard's org-keyed client query handles immediate
+in-place switches. The cookie carries no secret — the backend validates membership on every
+request regardless.
 
 **`useOrgFetch` hook** (`src/hooks/use-org-fetch.ts`) wraps `apiFetch` and closes over
 `orgId` from context, injecting `X-Org-ID` on every call. This keeps `apiFetch` as a plain
