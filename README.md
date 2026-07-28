@@ -22,7 +22,7 @@ If you have ten minutes, these five files carry most of the thinking:
 
 | File | Why |
 |---|---|
-| [ENGINEERING_REPORT.md](ENGINEERING_REPORT.md) | Five engineering decisions, each with the alternatives that were rejected — including the multi-org transport choice |
+| [ENGINEERING_REPORT.md](ENGINEERING_REPORT.md) | Six engineering decisions, each with the alternatives that were rejected — including the multi-org transport choice |
 | [backend/app/core/errors.py](backend/app/core/errors.py) | One error envelope, applied app-wide — every failure leaves as `{ detail, code }` |
 | [backend/app/core/deps.py](backend/app/core/deps.py) | `get_active_org` dependency — reads `X-Org-ID`, verifies membership, returns the org row |
 | [backend/tests/test_ownership.py](backend/tests/test_ownership.py) | Ownership is enforced twice and tested twice, deliberately — returns 404, never 403, for both cross-user and cross-org access |
@@ -34,12 +34,12 @@ If you have ten minutes, these five files carry most of the thinking:
 |---|---|---|
 | Frontend | Next.js 16.2 (App Router), React 19.2, TypeScript 5 | Server Components by default; `"use client"` only where there is interaction |
 | Styling | Tailwind CSS v4 | No component library — the UI primitives in `components/ui/` are hand-rolled |
-| Data fetching | TanStack Query v5 | Server-rendered data seeds the cache via `initialData`, so there is no loading flash |
+| Data fetching | TanStack Query v5 | Client-side server state, caching, invalidation, and optimistic updates; conversation detail is seeded with server-fetched `initialData` |
 | Forms | React Hook Form + Zod | The same Zod schemas type the form and validate it |
 | Backend | FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 | `asyncpg` driver; async all the way down |
 | Database | PostgreSQL 14+ | Alembic owns every schema change |
 | Auth | `bcrypt` + JWT in an `httpOnly` cookie | The token is deliberately absent from the login response body |
-| Tests | pytest + pytest-asyncio + httpx | 69 tests against a real PostgreSQL database |
+| Tests | pytest + pytest-asyncio + httpx; Playwright | 69 backend integration tests and 11 browser E2E tests |
 
 ## Features
 
@@ -53,8 +53,9 @@ view (dashboard, conversations, documents) updates instantly. Invite members via
 to exactly one organisation and is invisible from any other.
 
 **Dashboard** — conversation, message and document counts, plus the five most recent of
-each, all scoped to the active organisation. One aggregated endpoint, so the page is one
-round trip.
+each, all scoped to the active organisation. One aggregated endpoint supplies all
+dashboard-specific data; authentication and organisation membership are resolved
+separately.
 
 **Conversations** — create, rename inline, delete with confirmation, paginated list.
 Search matches both conversation titles *and* message text, and returns each matching
@@ -129,7 +130,7 @@ API at http://localhost:8000, Swagger UI at http://localhost:8000/docs.
 
 ```bash
 cd frontend
-npm install
+npm ci
 cp .env.example .env.local          # optional — defaults to http://localhost:8000/api/v1
 npm run dev
 ```
@@ -225,8 +226,8 @@ explains when it would earn its keep.
 
 ## API Documentation
 
-Full reference: **[docs/api.md](docs/api.md)** — all 16 endpoints, the error envelope, and
-every status code the API uses.
+Full reference: **[docs/api.md](docs/api.md)** — all 18 versioned API endpoints, the
+`/health` endpoint, the error envelope, and the status codes the API uses.
 
 Interactive: **http://localhost:8000/docs** while the backend is running.
 
@@ -243,10 +244,11 @@ Branch on `code`, never on `detail`. Validation errors add a flattened
 
 ER diagram and per-table design notes: **[docs/schema.md](docs/schema.md)**.
 
-Four tables — `users`, `conversations`, `messages`, `documents` — with cascading deletes
-from the owner down. Enums are `VARCHAR + CHECK` rather than native PostgreSQL `ENUM`
-types, so adding a status value is a constraint swap instead of an `ALTER TYPE` that
-cannot run inside a transaction.
+Six tables — `users`, `organizations`, `user_organizations`, `conversations`, `messages`,
+and `documents` — with foreign-key cascades across membership, ownership, organisation
+scope, and conversation history. Enums are `VARCHAR + CHECK` rather than native
+PostgreSQL `ENUM` types, so adding a status value is a constraint swap instead of an
+`ALTER TYPE` that cannot run inside a transaction.
 
 ## Testing
 
@@ -262,8 +264,9 @@ message ordering, upload validation, and the error envelope.
 
 Three things about the suite are worth knowing:
 
-- **The schema is built by running the real migration**, not `create_all` — so a
-  migration that drifts from the models fails the suite rather than passing quietly.
+- **The schema is built by running the real migration**, not `create_all`, so tests
+  exercise the deployed schema rather than a schema synthesized directly from models.
+  `alembic check` is run separately to detect model/migration drift.
 - **Isolation is `TRUNCATE` before each test**, not a transaction rollback. The
   repositories commit their own transactions, so rollback would isolate nothing.
 - **Ownership is tested twice**, once against the route guard and once against the
@@ -276,8 +279,17 @@ alembic check              # do the models still match the database?
 alembic downgrade base     # does downgrade() actually work?
 ```
 
-There are no frontend tests. That is the first thing I would add with more time, and it
-is called out in [§6 of the engineering report](ENGINEERING_REPORT.md#6-known-limitations).
+The frontend has 11 Playwright E2E tests. Start the backend and frontend first, then run:
+
+```bash
+cd frontend
+npx playwright install chromium   # one-time browser installation
+npm run test:e2e                   # 11 browser tests
+```
+
+The E2E suite covers authentication smoke flows, dashboard rendering, mobile overflow,
+conversation creation, search-control availability, document-page rendering, and logout.
+Frontend unit/component tests and deeper browser coverage remain future improvements.
 
 ## Troubleshooting
 
