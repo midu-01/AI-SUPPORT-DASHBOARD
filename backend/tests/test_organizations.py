@@ -88,9 +88,12 @@ async def test_list_returns_only_orgs_the_user_belongs_to(auth_client: AsyncClie
     assert "Theirs" not in names
 
 
-async def test_list_is_empty_before_any_org_is_created(auth_client: AsyncClient):
+async def test_register_creates_exactly_one_default_org(auth_client: AsyncClient):
+    """Registration auto-creates a default workspace, so a fresh user always
+    has exactly one org before they create any manually."""
     listed = (await auth_client.get(ORGS)).json()
-    assert listed == []
+    assert len(listed) == 1
+    assert "Workspace" in listed[0]["name"]
 
 
 # ── Add member ─────────────────────────────────────────────────────────────────

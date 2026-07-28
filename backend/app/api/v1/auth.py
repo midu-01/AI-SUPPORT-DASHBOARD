@@ -7,6 +7,7 @@ from app.core.deps import get_current_user, get_db
 from app.core.errors import AppError, error_docs
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User
+from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.errors import ValidationErrorResponse
 from app.schemas.user import (
@@ -56,6 +57,16 @@ async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
             code="EMAIL_ALREADY_REGISTERED",
             detail="Email already registered",
         )
+
+    # Every new user gets a default workspace so the dashboard is immediately
+    # usable.  Without this the frontend would hit 400 ORG_REQUIRED on the
+    # first request because there is no org to set in X-Org-ID.
+    org_repo = OrganizationRepository(db)
+    await org_repo.create(
+        name=f"{payload.full_name}'s Workspace",
+        creator_user_id=str(user.id),
+    )
+
     return user
 
 

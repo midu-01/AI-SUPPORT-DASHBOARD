@@ -4,6 +4,7 @@ REGISTER = "/api/v1/auth/register"
 LOGIN = "/api/v1/auth/login"
 ME = "/api/v1/auth/me"
 LOGOUT = "/api/v1/auth/logout"
+ORGS = "/api/v1/organizations"
 
 
 def credentials(email: str = "test@example.com", password: str = "password123"):
@@ -86,3 +87,17 @@ async def test_logout_clears_the_cookie(client: AsyncClient):
 
     assert (await client.post(LOGOUT)).status_code == 200
     assert (await client.get(ME)).status_code == 401
+
+
+async def test_register_creates_default_org(client: AsyncClient):
+    """A fresh user must land on a usable dashboard, which requires at least
+    one org.  Registration creates a default workspace automatically."""
+    await client.post(REGISTER, json=credentials(email="fresh@example.com"))
+    await client.post(
+        LOGIN, json={"email": "fresh@example.com", "password": "password123"}
+    )
+    orgs_resp = await client.get(ORGS)
+    assert orgs_resp.status_code == 200
+    orgs = orgs_resp.json()
+    assert len(orgs) == 1
+    assert orgs[0]["name"] == "Test User's Workspace"
