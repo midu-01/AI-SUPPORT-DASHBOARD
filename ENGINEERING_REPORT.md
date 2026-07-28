@@ -11,7 +11,7 @@ organisation; switching organisations changes every view without logging out.
 **Current state:** the backend is covered by **69 passing integration tests**. The Next.js
 frontend implements registration, login, logout, the route guard, the authenticated shell,
 the dashboard, conversation CRUD with search and message threads, document upload,
-organisation creation, and organisation switching against the real API. **16 Playwright E2E
+organisation creation, and organisation switching against the real API. **19 Playwright E2E
 tests** cover the principal authentication and page smoke flows. The remaining verification
 gaps and the deliberately omitted upload progress bar are listed in §6.
 
@@ -307,13 +307,13 @@ later feature coverage trustworthy.
 
 **Largest gaps first:**
 
-- **Frontend automation is useful but not comprehensive.** There are 16 Playwright
+- **Frontend automation is useful but not comprehensive.** There are 19 Playwright
   E2E tests covering signed-out redirects, registration, login failures and success,
   signed-in auth-route redirects, dashboard rendering, mobile overflow at 375 px,
   organisation switching with reload persistence, dashboard cross-org data isolation,
   conversation creation/rename/delete, message-history persistence, search-control
-  availability, document-page rendering, and logout. They do not yet verify search results,
-  real file uploads, document deletion, keyboard focus, or accessibility rules.
+  availability, real PDF/DOCX/TXT upload persistence, document deletion, and logout. They do
+  not yet verify search results, keyboard focus, or accessibility rules.
   There are also no frontend unit or component tests.
 - **No upload progress bar.** `fetch` cannot report request-body progress; a determinate bar
   needs `XMLHttpRequest` or a streaming request body. The upload zone shows an indeterminate
@@ -373,8 +373,8 @@ trusting the code that generated it.
 
 **If you had one additional day, what would you improve?**
 
-I would deepen the Playwright suite beyond its 16 tests with real PDF/DOCX/TXT upload/delete
-flows and search-result assertions. I would also add focused component tests for validation,
+I would deepen the Playwright suite beyond its 19 tests with search-result assertions and
+failure-path coverage. I would also add focused component tests for validation,
 query-key scoping, and failure states, because they are faster and more deterministic than
 recreating every edge case through a browser. The hydration bug found while polishing is the
 argument for browser coverage: it had been invisible in review, and a browser found it in

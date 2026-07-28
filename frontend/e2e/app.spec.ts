@@ -43,6 +43,8 @@ async function registerAndLogin(page: import("@playwright/test").Page) {
     localStorage.setItem("activeOrgId", organizations[0].id);
     document.cookie = `activeOrgId=${organizations[0].id}; path=/; SameSite=Lax`;
   });
+  await page.reload();
+  await expect(page.getByRole("button", { name: /sign out/i })).toBeVisible();
   return email;
 }
 
@@ -399,6 +401,73 @@ test.describe("Documents", () => {
       page.getByText(/upload|drag|drop|browse/i).first(),
     ).toBeVisible({ timeout: 5_000 });
   });
+
+  const uploadCases = [
+    {
+      label: "PDF",
+      name: "e2e-support-guide.pdf",
+      mimeType: "application/pdf",
+      // Minimal PDF-like payload. The backend validates the real PDF signature
+      // while the assessment explicitly does not require document processing.
+      buffer: Buffer.from(
+        "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n",
+      ),
+    },
+    {
+      label: "DOCX",
+      name: "e2e-support-guide.docx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      // DOCX is a ZIP container; PK\x03\x04 is the signature validated by the
+      // backend before metadata is accepted.
+      buffer: Buffer.from("504b0304140000000800", "hex"),
+    },
+    {
+      label: "TXT",
+      name: "e2e-support-guide.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("Customer support runbook for the E2E upload flow.\n"),
+    },
+  ] as const;
+
+  for (const file of uploadCases) {
+    test(`uploads and persists ${file.label} metadata`, async ({ page }) => {
+      await registerAndLogin(page);
+      await page.goto("/documents");
+
+      const uploadZone = page.getByRole("button", {
+        name: /upload a document/i,
+      }).last();
+      await expect(uploadZone).toBeVisible();
+      await expect(page.getByText("No documents uploaded yet.").last()).toBeVisible();
+      await uploadZone.locator('input[type="file"]').setInputFiles({
+        name: file.name,
+        mimeType: file.mimeType,
+        buffer: file.buffer,
+      });
+      await expect(page.getByText(file.name, { exact: true }).last()).toBeVisible({
+        timeout: 10_000,
+      });
+
+      // The row is database-backed rather than a temporary upload preview.
+      await page.reload();
+      await expect(page.getByText(file.name, { exact: true }).last()).toBeVisible({
+        timeout: 10_000,
+      });
+
+      // Exercise cleanup through the user-facing delete path as part of the
+      // TXT case; the other two remain available for visual inspection.
+      if (file.label === "TXT") {
+        await page
+          .getByRole("button", { name: `Delete "${file.name}"` })
+          .click();
+        const dialog = page.getByRole("dialog", { name: /delete document/i });
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole("button", { name: /^delete$/i }).click();
+        await expect(page.getByText(file.name, { exact: true })).toHaveCount(0);
+      }
+    });
+  }
 });
 
 // ── Logout ────────────────────────────────────────────────────────────────────
