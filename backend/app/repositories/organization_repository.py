@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.models.organization import Organization, UserOrganization
 
@@ -77,3 +78,15 @@ class OrganizationRepository:
         await self.db.commit()
         await self.db.refresh(membership)
         return membership
+
+    async def list_members(
+        self, org_id: str
+    ) -> list[UserOrganization]:
+        """Return all memberships for an org, eagerly loading the user."""
+        result = await self.db.execute(
+            select(UserOrganization)
+            .options(joinedload(UserOrganization.user))
+            .where(UserOrganization.org_id == org_id)
+            .order_by(UserOrganization.joined_at)
+        )
+        return list(result.scalars().all())

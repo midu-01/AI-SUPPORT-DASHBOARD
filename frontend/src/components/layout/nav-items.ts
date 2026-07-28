@@ -1,4 +1,4 @@
-import { FileText, LayoutDashboard, MessagesSquare } from "lucide-react";
+import { FileText, LayoutDashboard, MessagesSquare, Users } from "lucide-react";
 
 /**
  * The one list of navigation targets, shared by the sidebar and the mobile bar.
@@ -8,6 +8,7 @@ export const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/conversations", label: "Conversations", icon: MessagesSquare },
   { href: "/documents", label: "Documents", icon: FileText },
+  { href: "/members", label: "Members", icon: Users },
 ] as const;
 
 /**

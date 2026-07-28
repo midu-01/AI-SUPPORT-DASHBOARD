@@ -101,6 +101,16 @@ export interface OrganizationCreated {
   membership: Membership;
 }
 
+/** A member row enriched with user info, from GET /organizations/{id}/members */
+export interface MemberDetail {
+  user_id: string;
+  org_id: string;
+  role: OrgRole;
+  joined_at: string;
+  email: string;
+  full_name: string;
+}
+
 // ── Dashboard ────────────────────────────────────────────────────────────────
 
 export interface DashboardSummary {
@@ -137,6 +147,7 @@ export type ApiErrorCode =
   | "FILE_EMPTY"
   | "FILENAME_REQUIRED"
   | "USER_NOT_FOUND"
+  | "FORBIDDEN"
   | "INTERNAL_ERROR"
   | (string & {});
 

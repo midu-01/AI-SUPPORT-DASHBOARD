@@ -8,6 +8,8 @@ from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.organization import (
     AddMemberRequest,
+    InviteMemberRequest,
+    MemberDetail,
     MembershipRead,
     OrganizationCreate,
     OrganizationCreated,
@@ -129,5 +131,92 @@ async def add_member(
 
     membership = await repo.add_member(
         user_id=payload.user_id, org_id=org_id, role=payload.role
+    )
+    return membership
+
+
+@router.get(
+    "/{org_id}/members",
+    response_model=list[MemberDetail],
+    summary="List members of an organization",
+    description="Returns all members with their user info. Caller must be a member.",
+    responses={**NOT_FOUND},
+)
+async def list_members(
+    org_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    repo = OrganizationRepository(db)
+
+    caller_membership = await repo.get_membership(current_user.id, org_id)
+    _check_membership(caller_membership, org_id=org_id)
+
+    memberships = await repo.list_members(org_id)
+    return [
+        MemberDetail(
+            user_id=m.user_id,
+            org_id=m.org_id,
+            role=m.role,
+            joined_at=m.joined_at,
+            email=m.user.email,
+            full_name=m.user.full_name,
+        )
+        for m in memberships
+    ]
+
+
+@router.post(
+    "/{org_id}/members/invite",
+    response_model=MembershipRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Invite a member by email",
+    description=(
+        "Looks up a registered user by email and adds them to the organization. "
+        "Only an existing **admin** may invite. Returns **404** if the email is "
+        "not registered, **409** if already a member."
+    ),
+    responses={**NOT_FOUND, **ALREADY_MEMBER},
+)
+async def invite_member_by_email(
+    org_id: str,
+    payload: InviteMemberRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    repo = OrganizationRepository(db)
+
+    # Caller must be an admin of the org.
+    caller_membership = await repo.get_membership(current_user.id, org_id)
+    _check_membership(caller_membership, org_id=org_id)
+
+    if caller_membership.role != "admin":
+        raise AppError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            detail="Only admins can invite members",
+        )
+
+    # Look up the target user by email.
+    user_repo = UserRepository(db)
+    target_user = await user_repo.get_by_email(payload.email)
+    if target_user is None:
+        raise AppError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="USER_NOT_FOUND",
+            detail="No registered user with that email address",
+        )
+
+    # Guard against duplicate membership.
+    existing = await repo.get_membership(target_user.id, org_id)
+    if existing is not None:
+        raise AppError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="ALREADY_MEMBER",
+            detail="User is already a member of this organization",
+        )
+
+    membership = await repo.add_member(
+        user_id=target_user.id, org_id=org_id, role=payload.role
     )
     return membership
