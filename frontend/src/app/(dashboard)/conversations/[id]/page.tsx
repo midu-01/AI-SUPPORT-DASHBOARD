@@ -1,9 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
-import { ConversationDetail } from "@/components/conversations/conversation-detail";
-import { serverApiFetch } from "@/lib/server-api";
-import type { Conversation, Message } from "@/types/api";
+import { ConversationDetailLoader } from "@/components/conversations/conversation-detail-loader";
 
 /**
  * Conversation detail — server-fetches the conversation and its messages so the
@@ -19,20 +16,6 @@ export default async function ConversationDetailPage({
 }) {
   const { id } = await params;
 
-  let conversation: Conversation;
-  let messages: Message[];
-
-  try {
-    [conversation, messages] = await Promise.all([
-      serverApiFetch<Conversation>(`/conversations/${id}`),
-      serverApiFetch<Message[]>(`/conversations/${id}/messages`),
-    ]);
-  } catch {
-    // 404 or ownership violation — redirect rather than showing an error page
-    // for a resource that doesn't exist (or isn't theirs).
-    redirect("/conversations");
-  }
-
   return (
     <div className="mx-auto max-w-3xl">
       <Link
@@ -43,11 +26,7 @@ export default async function ConversationDetailPage({
       </Link>
 
       <div className="mt-4">
-        <ConversationDetail
-          id={id}
-          initial={conversation}
-          initialMessages={messages}
-        />
+        <ConversationDetailLoader id={id} />
       </div>
     </div>
   );

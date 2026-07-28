@@ -28,6 +28,21 @@ async function registerAndLogin(page: import("@playwright/test").Page) {
   await page.getByLabel(/password/i).fill(PASSWORD);
   await page.getByRole("button", { name: /create account/i }).click();
   await expect(page).toHaveURL("/", { timeout: 10_000 });
+
+  // Registration creates a default organization in the same backend flow, but
+  // the client provider writes its SSR cookie after hydration. Persist that
+  // organization explicitly before returning so any immediate navigation to a
+  // Server Component (for example conversation detail) is correctly scoped.
+  await page.evaluate(async () => {
+    const response = await fetch("http://localhost:8000/api/v1/organizations", {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error(`List organizations failed: ${response.status}`);
+    const organizations = (await response.json()) as Array<{ id: string }>;
+    if (!organizations[0]) throw new Error("Registration created no organization");
+    localStorage.setItem("activeOrgId", organizations[0].id);
+    document.cookie = `activeOrgId=${organizations[0].id}; path=/; SameSite=Lax`;
+  });
   return email;
 }
 
@@ -299,6 +314,78 @@ test.describe("Conversations", () => {
     // Use .first() because mobile and desktop both render a search input.
     const searchInput = page.getByPlaceholder(/search/i).first();
     await expect(searchInput).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("rename persists after reload", async ({ page }) => {
+    await registerAndLogin(page);
+    await page.goto("/conversations");
+    await page.getByRole("button", { name: /new conversation/i }).click();
+    // The list mutation can finish before a server detail navigation resolves;
+    // return to the list and follow the persisted resource link explicitly.
+    await page.goto("/conversations");
+    const detailHref = await page
+      .getByRole("link", { name: /new conversation/i })
+      .first()
+      .getAttribute("href");
+    expect(detailHref).toBeTruthy();
+    await page.goto(detailHref!);
+    await expect(page.getByRole("button", { name: /rename conversation/i })).toBeVisible();
+
+    const renamedTitle = `Renamed conversation ${Date.now()}`;
+    await page.getByRole("button", { name: /rename conversation/i }).click();
+    await page.getByLabel(/conversation title/i).fill(renamedTitle);
+    await page.getByRole("button", { name: /save title/i }).click();
+    await expect(page.getByRole("heading", { name: renamedTitle })).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: renamedTitle })).toBeVisible();
+  });
+
+  test("message is added to history and persists after reload", async ({ page }) => {
+    await registerAndLogin(page);
+    await page.goto("/conversations");
+    await page.getByRole("button", { name: /new conversation/i }).click();
+    await page.goto("/conversations");
+    const detailHref = await page
+      .getByRole("link", { name: /new conversation/i })
+      .first()
+      .getAttribute("href");
+    expect(detailHref).toBeTruthy();
+    await page.goto(detailHref!);
+    await expect(page.getByLabel("Message")).toBeVisible();
+
+    const message = `E2E support message ${Date.now()}`;
+    await page.getByLabel("Message").fill(message);
+    await page.getByRole("button", { name: /send/i }).click();
+    await expect(page.getByText(message, { exact: true })).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByText(message, { exact: true })).toBeVisible();
+  });
+
+  test("delete removes the conversation and returns to the list", async ({ page }) => {
+    await registerAndLogin(page);
+    await page.goto("/conversations");
+    await page.getByRole("button", { name: /new conversation/i }).click();
+    await page.goto("/conversations");
+    const detailHref = await page
+      .getByRole("link", { name: /new conversation/i })
+      .first()
+      .getAttribute("href");
+    expect(detailHref).toBeTruthy();
+    await page.goto(detailHref!);
+    await expect(page.getByRole("button", { name: /delete conversation/i })).toBeVisible();
+
+    const deletedUrl = page.url();
+    await page.getByRole("button", { name: /delete conversation/i }).click();
+    const dialog = page.getByRole("dialog", { name: /delete conversation/i });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: /^delete$/i }).click();
+    await expect(page).toHaveURL(/\/conversations$/, { timeout: 10_000 });
+
+    // The deleted detail route is no longer accessible.
+    await page.goto(deletedUrl);
+    await expect(page).toHaveURL(/\/conversations$/, { timeout: 10_000 });
   });
 });
 

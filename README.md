@@ -39,7 +39,7 @@ If you have ten minutes, these five files carry most of the thinking:
 | Backend | FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 | `asyncpg` driver; async all the way down |
 | Database | PostgreSQL 14+ | Alembic owns every schema change |
 | Auth | `bcrypt` + JWT in an `httpOnly` cookie | The token is deliberately absent from the login response body |
-| Tests | pytest + pytest-asyncio + httpx; Playwright | 69 backend integration tests and 13 browser E2E tests |
+| Tests | pytest + pytest-asyncio + httpx; Playwright | 69 backend integration tests and 16 browser E2E tests |
 
 ## Features
 
@@ -279,17 +279,18 @@ alembic check              # do the models still match the database?
 alembic downgrade base     # does downgrade() actually work?
 ```
 
-The frontend has 13 Playwright E2E tests. Start the backend and frontend first, then run:
+The frontend has 16 Playwright E2E tests. Start the backend and frontend first, then run:
 
 ```bash
 cd frontend
 npx playwright install chromium   # one-time browser installation
-npm run test:e2e                   # 13 browser tests
+npm run test:e2e                   # 16 browser tests
 ```
 
 The E2E suite covers authentication smoke flows, dashboard rendering, mobile overflow,
 organization switching and persistence, dashboard cross-org data isolation, conversation
-creation, search-control availability, document-page rendering, and logout.
+creation/rename/delete, message-history persistence, search-control availability,
+document-page rendering, and logout.
 Frontend unit/component tests and deeper browser coverage remain future improvements.
 
 ## Troubleshooting
