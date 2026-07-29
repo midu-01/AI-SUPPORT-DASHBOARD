@@ -15,7 +15,10 @@ export default function ConversationDetailLoading() {
       </div>
       <Skeleton className="mt-2 h-4 w-32" />
 
-      <Card className="mt-5" style={{ minHeight: "24rem" }}>
+      {/* Same `min-h-96` as the real thread panel in `conversation-detail.tsx`.
+          A loading card shorter than the content it stands in for shifts the
+          page the moment data arrives. */}
+      <Card className="mt-5 min-h-96">
         <CardBody className="space-y-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div

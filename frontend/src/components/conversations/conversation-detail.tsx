@@ -276,7 +276,10 @@ export function ConversationDetail({
       />
 
       {/* Message thread */}
-      <Card className="mt-5 flex flex-col" style={{ minHeight: "24rem" }}>
+      {/* `min-h-96` is 24rem — the same value the inline style set. It must stay
+          identical across all three of these Cards (thread, error, loading) or
+          the panel resizes as the page moves between states. */}
+      <Card className="mt-5 flex min-h-96 flex-col">
         <div className="flex-1 overflow-y-auto p-4">
           {messages.length === 0 ? (
             <EmptyState message="No messages yet. Start the conversation below." />
@@ -380,7 +383,7 @@ export function ConversationDetailSkeleton() {
         <Skeleton variant="control" className="size-8" />
       </div>
       <Skeleton className="mt-2 h-4 w-32" />
-      <Card className="mt-5" style={{ minHeight: "24rem" }}>
+      <Card className="mt-5 min-h-96">
         <CardBody className="space-y-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
