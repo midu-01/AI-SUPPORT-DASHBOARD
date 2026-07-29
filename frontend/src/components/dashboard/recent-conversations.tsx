@@ -13,7 +13,9 @@ import type { Conversation } from "@/types/api";
  */
 export function RecentConversations({ items }: { items: Conversation[] }) {
   return (
-    <Card>
+    // The accent rule is what makes the two dashboard panels tellable apart at
+    // a glance, without reading either heading.
+    <Card accent="conversations">
       <CardHeader
         title="Recent conversations"
         action={
@@ -44,7 +46,7 @@ export function RecentConversations({ items }: { items: Conversation[] }) {
             <li key={conversation.id}>
               <Link
                 href={`/conversations/${conversation.id}`}
-                className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-slate-50"
+                className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-canvas"
               >
                 <span className="min-w-0 truncate text-sm text-slate-900">
                   {conversation.title}

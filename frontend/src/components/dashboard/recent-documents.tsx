@@ -21,7 +21,7 @@ const ICON_BY_MIME: Record<string, LucideIcon> = {
 
 export function RecentDocuments({ items }: { items: Document[] }) {
   return (
-    <Card>
+    <Card accent="documents">
       <CardHeader
         title="Recent documents"
         action={
@@ -53,7 +53,7 @@ export function RecentDocuments({ items }: { items: Document[] }) {
             return (
               <li
                 key={document.id}
-                className="flex items-center gap-3 px-5 py-3"
+                className="flex items-center gap-3 px-4 py-3"
               >
                 <Icon className="size-4 shrink-0 text-slate-400" aria-hidden="true" />
                 <span className="min-w-0 flex-1">

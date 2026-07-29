@@ -19,7 +19,7 @@ export default function MembersLoading() {
       <Card className="mt-5">
         <div className="divide-y divide-border">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 px-5 py-4">
+            <div key={i} className="flex items-center gap-3 px-4 py-3">
               <Skeleton className="size-9 rounded-full" />
               <div className="min-w-0 flex-1 space-y-2">
                 <Skeleton className="h-4 w-2/5" />

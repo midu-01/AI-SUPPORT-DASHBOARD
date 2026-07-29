@@ -249,7 +249,7 @@ export function ConversationList() {
             <ul className="divide-y divide-border" role="list">
               {data.items.map((conversation) => (
                 <li key={conversation.id}>
-                  <div className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-slate-50">
+                  <div className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-canvas">
                     <Link
                       href={`/conversations/${conversation.id}`}
                       className="min-w-0 flex-1"
@@ -336,7 +336,7 @@ function ConversationListSkeleton() {
       <div className="divide-y divide-border" aria-busy="true" aria-live="polite">
         <span className="sr-only">Loading conversations…</span>
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex items-center justify-between px-5 py-3">
+          <div key={i} className="flex items-center justify-between px-4 py-3">
             <div className="min-w-0 flex-1 space-y-2">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-3 w-24" />

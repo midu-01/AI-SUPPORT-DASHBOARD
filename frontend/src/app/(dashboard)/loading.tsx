@@ -43,14 +43,14 @@ export default function DashboardLoading() {
         <div className="space-y-6 lg:col-span-2">
           {[0, 1].map((card) => (
             <Card key={card}>
-              <div className="border-b border-border px-5 py-3.5">
+              <div className="border-b border-border px-4 py-3">
                 <Skeleton className="h-4 w-40" />
               </div>
               <div className="divide-y divide-border">
                 {[0, 1, 2].map((row) => (
                   <div
                     key={row}
-                    className="flex items-center justify-between px-5 py-3"
+                    className="flex items-center justify-between px-4 py-3"
                   >
                     <Skeleton className="h-4 w-48" />
                     <Skeleton className="h-3 w-20" />
@@ -62,10 +62,10 @@ export default function DashboardLoading() {
         </div>
 
         <Card>
-          <div className="border-b border-border px-5 py-3.5">
+          <div className="border-b border-border px-4 py-3">
             <Skeleton className="h-4 w-28" />
           </div>
-          <div className="space-y-4 p-5">
+          <div className="space-y-4 p-4">
             {[0, 1, 2].map((i) => (
               <div key={i}>
                 <Skeleton className="h-3 w-14" />

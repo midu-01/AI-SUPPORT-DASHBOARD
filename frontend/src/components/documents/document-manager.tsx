@@ -291,7 +291,7 @@ export function DocumentManager() {
         ) : (
           <Card>
             {/* Header row — hidden on mobile, visible md+ */}
-            <div className="hidden border-b border-border px-5 py-2.5 text-xs font-medium uppercase tracking-wider text-slate-500 md:grid md:grid-cols-[1fr_80px_80px_100px_80px_40px]">
+            <div className="hidden border-b border-border px-4 py-2.5 text-label uppercase text-fg-muted md:grid md:grid-cols-[1fr_80px_80px_100px_80px_40px]">
               <span>Name</span>
               <span>Type</span>
               <span>Size</span>
@@ -315,7 +315,7 @@ export function DocumentManager() {
                     // metadata wrapped onto a second. At `md` the wrapper below
                     // switches to `display: contents`, which dissolves it so its
                     // children become cells of the table row itself.
-                    className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 px-5 py-3 transition-colors hover:bg-slate-50 md:grid-cols-[1fr_80px_80px_100px_80px_40px]"
+                    className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 px-4 py-3 transition-colors hover:bg-canvas md:grid-cols-[1fr_80px_80px_100px_80px_40px]"
                   >
                     {/* Name */}
                     <div className="flex min-w-0 items-center gap-2">
@@ -411,7 +411,7 @@ function DocumentTableSkeleton() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="flex items-center gap-3 px-5 py-3"
+            className="flex items-center gap-3 px-4 py-3"
           >
             <Skeleton className="size-4 rounded" />
             <div className="min-w-0 flex-1 space-y-2">

@@ -270,7 +270,7 @@ export function ConversationDetail({
 
       {/* Message thread */}
       <Card className="mt-5 flex flex-col" style={{ minHeight: "24rem" }}>
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-4">
           {messages.length === 0 ? (
             <EmptyState message="No messages yet. Start the conversation below." />
           ) : (
