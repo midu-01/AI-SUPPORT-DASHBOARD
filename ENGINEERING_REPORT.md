@@ -100,6 +100,35 @@ accessibility details that a library would have supplied are therefore explicit:
 every label to its input, `aria-invalid` and `aria-describedby` connect a validation message
 to the field that caused it, and `role="alert"` announces errors when they appear.
 
+**The design system is a token layer, not a component library.** `app/globals.css` holds
+every design decision as a CSS custom property in Tailwind v4's `@theme` block — colour
+(a brand ramp, then roles like `surface` and `fg-muted`, then semantic status and
+per-feature hues), a type scale that carries its own tracking and weight per step, shape,
+elevation, and motion. Components name roles (`bg-surface`, `text-fg-muted`), never ramp
+steps, so a theme change is one edit here rather than a find-and-replace.
+
+Two things in that file are worth calling out because both are easy to get wrong:
+
+Every foreground/background pair is annotated with its **measured** WCAG ratio, computed
+from the sRGB relative-luminance formula rather than estimated. That surfaced two facts
+that would otherwise have shipped unnoticed. Muted text on the app background is 4.55:1 —
+AA by 0.05, so neither value can move. And four semantic fills (`success`, `warning`,
+`info`, and the documents hue) clear the 3:1 required of UI glyphs but *not* the 4.5:1
+required of text, so each has a darker `-on` variant for when the same meaning has to be
+carried by words. `danger` is the only fill that clears both, which is why
+`bg-danger text-white` is sound and copying that pattern to the others would not be.
+
+The focus ring resolves through an inherited `--focus-ring` property rather than a fixed
+colour, because no single ring colour clears 3:1 against both a white panel and dark
+chrome. A container sets the property; descendants inherit it. This matters because
+`Button` renders in both contexts and should not have to know which one it is in.
+
+**Adding a token requires checking Tailwind's own theme first.** Tailwind v4 predefines
+`--radius-*`, `--ease-*` and `--shadow-*`. Writing one of those keys does not add a token,
+it overrides Tailwind's — silently changing every existing utility that used it, with no
+error. Shape and elevation are therefore role-named (`rounded-card`, not `--radius-xl`),
+which also reads better at the call site.
+
 The component that most justified pulling in Radix was the modal, and the reason it did not:
 **the native `<dialog>` element already does the hard part.** `showModal()` supplies focus
 trapping, Escape-to-close, `aria-modal`, background inertness, and a `::backdrop` from the

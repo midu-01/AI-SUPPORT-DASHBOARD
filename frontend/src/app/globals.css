@@ -3,7 +3,28 @@
 /*
   ── Design tokens ───────────────────────────────────────────────────────────
 
-  Three tiers, in dependency order:
+  This file is the whole design system. Five families, in the order they appear:
+
+    Colour     ramps → roles → semantic (detailed below)
+    Type       `text-display` / `-metric` / `-title` / `-label`, each carrying
+               its own line-height, tracking and weight
+    Shape      `rounded-chip` / `-control` / `-card` / `-panel`
+    Elevation  `shadow-sunken` / `-flat` / `-raised` / `-floating`
+    Motion     `duration-fast` / `-base` / `-slow` / `-exit`, `ease-spring`
+
+  ── A rule that this file learned the hard way ──────────────────────────────
+
+  Tailwind v4 already defines `--radius-*`, `--ease-*` and `--shadow-*`. Writing
+  one of those keys does not *add* a token — it silently **overrides** Tailwind's,
+  retroactively changing every existing utility that used it. That is why the
+  shape and elevation tokens are role names (`rounded-card`, not `--radius-xl`)
+  and why only one easing key is defined here.
+
+  Before adding a token to this file, check `node_modules/tailwindcss/theme.css`
+  for the key. A collision produces no error — just a whole-app visual change
+  with no obvious cause.
+
+  ── Colour, in three tiers ──────────────────────────────────────────────────
 
     1. Brand ramp — `brand-50…950`. A raw scale, no meaning attached.
     2. Roles      — `canvas`, `surface`, `border`, `fg`, `brand`. What a colour
