@@ -15,8 +15,10 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
+import { CONTROL_BASE, controlBorder } from "@/components/ui/field";
 import { FormError } from "@/components/ui/form-error";
 import { TextField } from "@/components/ui/text-field";
+import { cn } from "@/lib/utils";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { useOrg } from "@/lib/org-context";
 import { ApiError } from "@/lib/api-client";
@@ -174,7 +176,7 @@ export function InviteMemberDialog({ open, onClose }: InviteMemberDialogProps) {
             <div className="space-y-1.5">
               <label
                 htmlFor="invite-role"
-                className="block text-sm font-medium text-slate-700"
+                className="block text-sm font-medium text-fg"
               >
                 Role
               </label>
@@ -183,7 +185,7 @@ export function InviteMemberDialog({ open, onClose }: InviteMemberDialogProps) {
                 value={role}
                 onChange={(e) => setRole(e.target.value as OrgRole)}
                 disabled={invite.isPending}
-                className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-slate-900"
+                className={cn(CONTROL_BASE, controlBorder(), "h-11 sm:h-10")}
               >
                 <option value="member">Member</option>
                 <option value="admin">Admin</option>

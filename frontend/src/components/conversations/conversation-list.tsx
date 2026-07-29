@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CONTROL_BASE, controlBorder } from "@/components/ui/field";
 import {
   MutationFeedback,
   mutationErrorMessage,
@@ -188,8 +189,13 @@ export function ConversationList() {
             setPage(1);
           }}
           className={cn(
-            "block w-full rounded-lg border border-border bg-surface py-2 pl-10 pr-8 text-sm text-slate-900",
-            "placeholder:text-slate-400",
+            // Not a `TextField`: no visible label (the placeholder plus the
+            // icon carry it) and the icon needs asymmetric padding. It still
+            // takes the shared chrome, because the iOS auto-zoom-below-16px
+            // problem applies to every input, not only labelled ones.
+            CONTROL_BASE,
+            controlBorder(),
+            "h-11 pl-10 pr-8 sm:h-10",
           )}
           aria-label="Search conversations"
         />

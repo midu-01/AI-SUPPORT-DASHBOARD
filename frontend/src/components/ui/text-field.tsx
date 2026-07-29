@@ -1,62 +1,70 @@
 "use client";
 
-import { forwardRef, useId, type ComponentProps } from "react";
+import { forwardRef, type ComponentProps } from "react";
 
+import {
+  CONTROL_BASE,
+  FieldShell,
+  controlBorder,
+  useFieldIds,
+} from "@/components/ui/field";
 import { cn } from "@/lib/utils";
+
+/*
+  Heights, not padding. `h-11` (44px) is the WCAG 2.5.5 touch-target minimum and
+  the same height `Button size="icon"` got in Step 2.1 — a form row where the
+  input and its submit button differ by 4px reads as a misalignment. The previous
+  `py-2` produced ~38px, below the minimum on every field in the app.
+*/
+const SIZES = {
+  sm: "h-9 sm:h-8",
+  md: "h-11 sm:h-10",
+} as const;
 
 interface TextFieldProps extends Omit<ComponentProps<"input">, "id"> {
   label: string;
   /** Validation message. Its presence is what marks the input invalid. */
   error?: string;
+  /** Persistent format hint. Stays visible while typing, unlike a placeholder. */
+  helper?: string;
+  size?: keyof typeof SIZES;
 }
 
 /**
- * A labelled text input that owns its own accessibility wiring.
- *
- * The label/error/input relationship is the part people get wrong, so it is
- * done once here rather than repeated per form:
- *
- * - `useId` generates a collision-free id, so `htmlFor` actually points at the
- *   input. A label that isn't associated is a label a screen reader won't read,
- *   and clicking it won't focus the field.
- * - `aria-invalid` marks the field as failed.
- * - `aria-describedby` links the message to the input, so the reason is
- *   announced on focus instead of only being visible.
- * - `role="alert"` announces the error the moment it appears, without the user
- *   having to go looking for it.
+ * A labelled text input. The label/helper/error accessibility wiring lives in
+ * `field.tsx` and is shared with `Textarea` — see the comment there.
  *
  * `forwardRef` is used so callers can focus the input imperatively (e.g. the
  * CreateOrgDialog focuses the name field when the modal opens).
  */
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
-  function TextField({ label, error, className, ...props }, ref) {
-    const id = useId();
-    const errorId = `${id}-error`;
+  function TextField(
+    { label, error, helper, size = "md", className, ...props },
+    ref,
+  ) {
+    const { id, errorId, helperId, describedBy } = useFieldIds({
+      error,
+      helper,
+    });
 
     return (
-      <div className="space-y-1.5">
-        <label htmlFor={id} className="block text-sm font-medium text-slate-700">
-          {label}
-        </label>
+      <FieldShell
+        id={id}
+        label={label}
+        helper={helper}
+        helperId={helperId}
+        error={error}
+        errorId={errorId}
+      >
         <input
           ref={ref}
           id={id}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : undefined}
-          className={cn(
-            "block w-full rounded-lg border bg-surface px-3 py-2 text-sm text-slate-900",
-            "placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50",
-            error ? "border-danger" : "border-border",
-            className,
-          )}
+          aria-describedby={describedBy}
+          className={cn(CONTROL_BASE, controlBorder(error), SIZES[size], className)}
           {...props}
         />
-        {error && (
-          <p id={errorId} role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        )}
-      </div>
+      </FieldShell>
     );
   },
 );
