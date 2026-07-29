@@ -41,7 +41,7 @@ read. `documents.storage_path` is the one place that would change if this moved 
 | Org membership model | Join table (`user_organizations`) with a `role` column (`member` / `admin`). Covers both simple membership checks and admin-only operations without a schema change. |
 | `org_id` migration | The first organisation migration adds nullable columns. The follow-up assigns legacy resources to the user's earliest membership, creates a default admin workspace only when that user has no membership, then sets both columns `NOT NULL`. |
 | Org creation | Any authenticated user can create an organisation and is automatically added as its admin. |
-| Member invitation | `POST /api/v1/organizations/{org_id}/members` is implemented and admin-gated on the backend. The frontend does not expose a member management screen — deferred as out of scope for this assessment. |
+| Member invitation | `POST /api/v1/organizations/{org_id}/members/invite` allows admins to invite members by email. A dedicated `/members` screen is available on the frontend. |
 | Org deletion | Not implemented. Deleting an org would cascade-delete all its conversations and documents, which is a destructive operation that warrants a separate, deliberate design decision. |
 | Dashboard | All five summary queries (counts + recent lists) are scoped to the active org. The response includes `current_org` so the frontend knows which org the numbers belong to. |
 
@@ -49,6 +49,6 @@ read. `documents.storage_path` is the one place that would change if this moved 
 
 Real AI/LLM calls, document text extraction, embeddings and RAG, real-time updates,
 S3 storage, background workers, rate limiting, soft delete and audit logging, exhaustive
-test coverage, org deletion, member management UI, and org invitation emails.
+test coverage, org deletion, and pending invitation/email acceptance flow.
 
 Known limitations and what I would improve are covered in `ENGINEERING_REPORT.md`.

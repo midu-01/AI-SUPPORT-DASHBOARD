@@ -41,6 +41,8 @@ Endpoints marked **org-scoped** in the tables below require this header.
 | POST | `/organizations` | ✅ | `{ name }` — creator auto-added as admin | 201 `{ organization, membership }` | 422 |
 | GET | `/organizations` | ✅ | Lists orgs the caller belongs to | 200 `Organization[]` | — |
 | POST | `/organizations/{org_id}/members` | ✅ admin only | `{ user_id, role }` — role: `member` \| `admin` | 201 `Membership` | 403, 404, 409 |
+| GET | `/organizations/{org_id}/members` | ✅ member | Lists all members with user details | 200 `MemberDetail[]` | 404 |
+| POST | `/organizations/{org_id}/members/invite` | ✅ admin only | `{ email, role }` — invites user by email | 201 `Membership` | 403, 404, 409 |
 
 ### Response shapes
 
