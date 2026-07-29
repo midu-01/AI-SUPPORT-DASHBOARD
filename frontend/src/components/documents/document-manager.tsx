@@ -333,7 +333,7 @@ export function DocumentManager() {
                         pushed down with the metadata. */}
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => setPendingDeleteId(doc.id)}
                       aria-label={`Delete "${doc.original_filename}"`}
                       className="col-start-2 row-start-1 justify-self-end md:col-start-6"

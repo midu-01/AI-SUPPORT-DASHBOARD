@@ -213,7 +213,7 @@ export function ConversationDetail({
             />
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               type="submit"
               aria-label="Save title"
             >
@@ -223,7 +223,7 @@ export function ConversationDetail({
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={cancelRename}
               aria-label="Cancel rename"
             >
@@ -237,7 +237,7 @@ export function ConversationDetail({
             </h1>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={() => {
                 setRenameValue(conversation.title);
                 setIsRenaming(true);
@@ -251,7 +251,7 @@ export function ConversationDetail({
 
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={() => setShowDeleteConfirm(true)}
           aria-label="Delete conversation"
         >

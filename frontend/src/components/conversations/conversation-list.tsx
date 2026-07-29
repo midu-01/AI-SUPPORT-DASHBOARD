@@ -229,7 +229,11 @@ export function ConversationList() {
               }
               action={
                 !effectiveSearch ? (
+                  {/* `subtle`, not `primary`: the page header already has a
+                      primary "New conversation" button, and two filled brand
+                      buttons on one screen compete instead of ranking. */}
                   <Button
+                    variant="subtle"
                     size="sm"
                     onClick={() => create.mutate()}
                     loading={create.isPending}
@@ -262,7 +266,7 @@ export function ConversationList() {
                     </Link>
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => confirmDelete(conversation.id)}
                       aria-label={`Delete "${conversation.title}"`}
                     >
