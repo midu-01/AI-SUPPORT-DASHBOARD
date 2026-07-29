@@ -1,24 +1,184 @@
 @import "tailwindcss";
 
 /*
-  Light mode only — see ASSUMPTIONS.md. The scaffold's `prefers-color-scheme:
-  dark` block was removed rather than left in place: a dark palette that no page
-  is designed or checked against renders half the UI unreadable the moment a
-  reviewer's OS is set to dark. An absent feature beats a broken one.
+  ── Design tokens ───────────────────────────────────────────────────────────
 
-  Semantic tokens only. Neutrals are Tailwind's slate scale throughout, so there
-  is one grey in play rather than two competing ones. The single exception is
-  document status, where amber ("processing") and emerald ("indexed") carry
-  meaning slate cannot — and `StatusBadge` spells the status out in text as
-  well, so the colour is never the only signal.
+  Three tiers, in dependency order:
+
+    1. Brand ramp — `brand-50…950`. A raw scale, no meaning attached.
+    2. Roles      — `canvas`, `surface`, `border`, `fg`, `brand`. What a colour
+                    is *for*. Components name these, never a ramp step, so
+                    re-theming is one line here rather than a find-and-replace.
+    3. Semantic   — status (success / warning / danger / info) and the three
+                    domain hues (conversations / documents / members).
+
+  There is deliberately NO neutral ramp: Tailwind v4 already ships `slate-50…950`
+  and duplicating it under a second name would give two greys with one meaning.
+  The role tokens below name specific slate steps; raw `slate-*` utilities remain
+  available for one-off cases.
+
+  ── Why literal values, not `var()` references ──────────────────────────────
+
+  Each role repeats a hex rather than pointing at a ramp token. That looks like
+  duplication and is deliberate: `@theme` tree-shakes theme variables that no
+  utility references, so a role defined as `var(--color-slate-50)` would break
+  the moment nothing in the app happens to use `bg-slate-50`. Every step is
+  annotated with the scale step it equals, so the relationship stays readable
+  without depending on emission order.
+
+  ── Contrast ────────────────────────────────────────────────────────────────
+
+  Every pair is annotated with its *measured* WCAG 2.1 ratio, computed from the
+  sRGB relative-luminance formula. Two thresholds are in play:
+
+    • 4.5:1 — normal body text (1.4.3)
+    • 3:1   — large text (≥24px, or ≥19px bold) and UI glyphs (1.4.11)
+
+  Four semantic fills (`success`, `warning`, `info`, `documents`) clear 3:1 but
+  NOT 4.5:1 against white. They are fills and glyphs; each has an `-on` variant
+  — a darker step — for when the same meaning must be carried by *text*. Using
+  `--color-warning` as a text colour is a contrast bug, not a style choice.
+  That is what `-on` is for.
+
+  ── Light mode only ─────────────────────────────────────────────────────────
+
+  See ASSUMPTIONS.md. The scaffold's `prefers-color-scheme: dark` block was
+  removed rather than left in place: a dark palette that no page is designed or
+  checked against renders half the UI unreadable the moment a reviewer's OS is
+  set to dark. An absent feature beats a broken one.
+
+  The `shell-*` tokens are NOT a dark theme. They are a dark chrome around a
+  light workspace — a fixed part of the design, identical regardless of OS
+  setting. There is still exactly one theme.
 */
+
 @theme inline {
-  --color-canvas: #f8fafc; /* slate-50   — app background  */
-  --color-surface: #ffffff; /* cards, panels                */
-  --color-border: #e2e8f0; /* slate-200  — hairlines       */
-  --color-brand: #4f46e5; /* indigo-600 — primary action  */
-  --color-brand-hover: #4338ca; /* indigo-700                   */
-  --color-danger: #dc2626; /* red-600    — destructive     */
+  /* ── Brand ramp (indigo) ──────────────────────────────────────────────────
+     Step 600 is the pre-existing brand value, confirmed against the design
+     database rather than changed — see ui-plan.md Step 1.1. Matches Tailwind's
+     `indigo-*`, but carries the brand *name*: if the brand hue ever changes it
+     changes here, whereas `indigo-600` scattered through components would be a
+     find-and-replace. */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+  --color-brand-950: #1e1b4b;
+
+  /* ── Roles: light workspace ───────────────────────────────────────────────
+     Measured:
+       fg on surface .............. 17.9:1 ✓ body text
+       fg on canvas ............... 17.1:1 ✓ body text
+       fg-muted on surface ......... 4.76:1 ✓ body text
+       fg-muted on canvas .......... 4.55:1 ✓ body text — 0.05 of headroom.
+                                            Do NOT darken `canvas` or lighten
+                                            `fg-muted`; either breaks AA for
+                                            every muted label on the app
+                                            background.
+       fg-subtle on surface ........ 2.60:1 ✗ decorative/disabled glyphs ONLY */
+  --color-canvas: #f8fafc; /* slate-50  — app background      */
+  --color-surface: #ffffff; /*           — cards, panels        */
+  --color-surface-sunken: #f8fafc; /* slate-50  — inset data rows      */
+  --color-border: #e2e8f0; /* slate-200 — hairlines            */
+  --color-border-strong: #cbd5e1; /* slate-300 — emphasised dividers  */
+  --color-fg: #0f172a; /* slate-900 — primary text         */
+  --color-fg-muted: #64748b; /* slate-500 — secondary text       */
+  --color-fg-subtle: #94a3b8; /* slate-400 — glyphs, never text   */
+
+  /* ── Roles: brand ─────────────────────────────────────────────────────────
+       white on brand ............. 6.29:1 ✓ button label
+       white on brand-hover ....... 7.90:1 ✓ button label
+       brand on surface ........... 6.29:1 ✓ link text
+       brand on canvas ............ 6.01:1 ✓ link text
+       brand on brand-subtle ...... 5.62:1 ✓ active nav pill */
+  --color-brand: #4f46e5; /* brand-600 — primary action */
+  --color-brand-hover: #4338ca; /* brand-700                  */
+  --color-brand-subtle: #eef2ff; /* brand-50  — tinted surface */
+
+  /* ── Shell: the dark chrome ───────────────────────────────────────────────
+     Sidebar and topbar only. Kept deliberately quiet — the design database
+     lists "heavy chrome" as the primary anti-pattern for this product class,
+     so the shell exists to provide figure-ground separation and nothing else.
+
+     Measured:
+       shell-fg on shell .......... 16.3:1 ✓ nav labels
+       shell-fg-muted on shell ..... 6.96:1 ✓ secondary nav text
+       shell-border on canvas ...... 9.90:1 ✓ the sidebar's outer edge
+       shell-border on shell ....... 1.72:1 — internal hairline, below 3:1 by
+                                            design: it separates regions within
+                                            one panel, it is not a control
+                                            boundary. Anything interactive on
+                                            the shell needs `shell-raised` or a
+                                            focus ring, not this. */
+  --color-shell: #0f172a; /* slate-900 — sidebar, topbar        */
+  --color-shell-raised: #1e293b; /* slate-800 — active nav, hover      */
+  --color-shell-border: #334155; /* slate-700 — internal hairline      */
+  --color-shell-fg: #f1f5f9; /* slate-100 — nav labels             */
+  --color-shell-fg-muted: #94a3b8; /* slate-400 — secondary shell text   */
+
+  /* ── Semantic: status ─────────────────────────────────────────────────────
+     Three variants each, NOT interchangeable:
+       <name>         fill and icon glyph  — ≥3:1 with white on it
+       <name>-subtle  pale background
+       <name>-on      text, on `-subtle` or on white — ≥4.5:1
+
+     Measured (white on fill / `-on` on white / `-on` on `-subtle`):
+       success .... 3.77:1 △   5.49:1 ✓   5.21:1 ✓
+       warning .... 3.19:1 △   5.02:1 ✓   4.79:1 ✓
+       danger ..... 4.83:1 ✓   6.47:1 ✓   5.91:1 ✓
+       info ....... 4.09:1 △   5.93:1 ✓   5.63:1 ✓
+
+     △ = large text and glyphs only. `danger` is the one fill that also clears
+     4.5:1 — which is why the existing `bg-danger text-white` button is correct
+     as it stands, and why the same pattern would NOT be correct for the others. */
+  --color-success: #059669; /* emerald-600 */
+  --color-success-subtle: #ecfdf5; /* emerald-50  */
+  --color-success-on: #047857; /* emerald-700 */
+
+  --color-warning: #d97706; /* amber-600   */
+  --color-warning-subtle: #fffbeb; /* amber-50    */
+  --color-warning-on: #b45309; /* amber-700   */
+
+  --color-danger: #dc2626; /* red-600     */
+  --color-danger-subtle: #fef2f2; /* red-50      */
+  --color-danger-on: #b91c1c; /* red-700     */
+
+  --color-info: #0284c7; /* sky-600     */
+  --color-info-subtle: #f0f9ff; /* sky-50      */
+  --color-info-on: #0369a1; /* sky-700     */
+
+  /* ── Semantic: domain hues ────────────────────────────────────────────────
+     One identity hue per feature area, so the dashboard is scannable by colour
+     and shape rather than by reading every label. Used on icon tiles, metric
+     accents and card leading edges — never as the sole carrier of meaning.
+
+     Same three-variant contract as status. Measured (white on fill / on-subtle):
+       conversations  6.29:1 ✓   5.62:1 ✓
+       documents      3.68:1 △   5.15:1 ✓
+       members        3.77:1 △   5.21:1 ✓
+
+     Far enough apart on the wheel to be told apart at 16px icon size. All three
+     are taken from the design-database row for their sub-domain rather than
+     picked by eye — see ui-plan.md Step 1.1. `conversations` and `members`
+     intentionally equal `brand` and `success`: a conversation *is* the brand
+     surface, and members reuse the success hue rather than inventing a fourth. */
+  --color-conversations: #4f46e5; /* brand-600   */
+  --color-conversations-subtle: #eef2ff; /* brand-50    */
+  --color-conversations-on: #4f46e5; /* brand-600   */
+
+  --color-documents: #0891b2; /* cyan-600    */
+  --color-documents-subtle: #ecfeff; /* cyan-50     */
+  --color-documents-on: #0e7490; /* cyan-700    */
+
+  --color-members: #059669; /* emerald-600 */
+  --color-members-subtle: #ecfdf5; /* emerald-50  */
+  --color-members-on: #047857; /* emerald-700 */
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -26,7 +186,7 @@
 
 body {
   background: var(--color-canvas);
-  color: var(--color-slate-900);
+  color: var(--color-fg);
 }
 
 /*
