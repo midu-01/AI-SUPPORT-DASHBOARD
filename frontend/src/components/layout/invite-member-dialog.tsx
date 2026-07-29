@@ -183,7 +183,7 @@ export function InviteMemberDialog({ open, onClose }: InviteMemberDialogProps) {
                 value={role}
                 onChange={(e) => setRole(e.target.value as OrgRole)}
                 disabled={invite.isPending}
-                className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand/40"
+                className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-slate-900"
               >
                 <option value="member">Member</option>
                 <option value="admin">Admin</option>

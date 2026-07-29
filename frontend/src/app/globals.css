@@ -290,6 +290,30 @@
   --transition-duration-exit: 130ms; /* ~65% of base — see above   */
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* press feedback only */
+
+  /* ── Focus ring ───────────────────────────────────────────────────────────
+     Two colours, because no single ring colour clears 3:1 against both a white
+     workspace and the dark shell. Measured:
+
+       brand      on surface .......  6.29:1 ✓
+       brand      on shell .........  2.84:1 ✗  ← below WCAG 1.4.11 (3:1)
+       brand      on shell-raised ..  2.33:1 ✗  ← worse, and this is the ACTIVE
+                                                  nav item — the single most
+                                                  likely thing to be focused
+       brand-300  on shell .........  8.96:1 ✓
+       brand-300  on shell-raised ..  7.34:1 ✓
+       brand-300  on surface .......  1.99:1 ✗
+
+     So the ring has to change colour by context. `--color-focus` is the default
+     (light workspace); `--color-focus-on-shell` is applied by the shell
+     containers in Phase 3 via the `--focus-ring` indirection below.
+
+     NOTE this is a real defect in the current app, not just future-proofing:
+     the active nav item is already `bg-brand/10` and the ring against it is
+     already low-contrast. The dark shell makes it obvious rather than causing
+     it. */
+  --color-focus: #4f46e5; /* brand-600 — on light surfaces */
+  --color-focus-on-shell: #a5b4fc; /* brand-300 — on dark chrome    */
 }
 
 /*
@@ -388,14 +412,49 @@ body {
 }
 
 /*
+  ── Focus ring ──────────────────────────────────────────────────────────────
+
   A visible focus ring on keyboard navigation only. `:focus-visible` rather than
   `:focus`, so a mouse click doesn't leave a ring behind — which is the usual
   reason people delete focus styling altogether and break keyboard navigation
   in the process.
+
+  The ring resolves through `--focus-ring`, which inherits. Any container can
+  retarget every descendant's ring by setting that one property — the shell does
+  exactly this below. Descendants need no awareness of where they are rendered,
+  which matters because `Button` appears in both the workspace and the shell and
+  must not have to know which.
+
+  `outline` rather than `box-shadow`: outline is unaffected by `overflow: hidden`
+  on an ancestor, does not participate in layout, and follows `border-radius` in
+  every current engine. A `box-shadow` ring gets clipped inside the document
+  table's scroll container.
+
+  The 2px offset is what makes the ring legible against a same-hue background —
+  it inserts a gap of the underlying surface between element and ring, so an
+  indigo ring on the indigo-tinted active nav item still reads as a ring.
 */
 @layer base {
+  :root {
+    --focus-ring: var(--color-focus);
+  }
+
   :focus-visible {
-    outline: 2px solid var(--color-brand);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
+  }
+
+  /*
+    Dark chrome: retarget the ring for the sidebar, topbar, and mobile drawer.
+    `brand-600` measures 2.84:1 on `shell` and 2.33:1 on `shell-raised` — both
+    below the 3:1 that WCAG 1.4.11 requires of a focus indicator. `brand-300`
+    measures 8.96:1 and 7.34:1.
+
+    Applied by class rather than by element so it also covers the mobile drawer,
+    which is a `<dialog>` and therefore not inside `<aside>`. Phase 3 puts
+    `.on-shell` on all three containers.
+  */
+  .on-shell {
+    --focus-ring: var(--color-focus-on-shell);
   }
 }
