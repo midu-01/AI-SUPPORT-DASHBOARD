@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Shield, UserPlus } from "lucide-react";
 
 import { InviteMemberDialog } from "@/components/layout/invite-member-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
@@ -139,19 +140,18 @@ export function MembersContent() {
                   </p>
                 </div>
 
-                {/* Role badge */}
-                <span
-                  className={
-                    member.role === "admin"
-                      ? "inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
-                      : "inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
+                {/* Role badge. The shield is decorative — "Admin" is written
+                    out, so the icon is redundant reinforcement, not the signal. */}
+                <Badge
+                  tone={member.role === "admin" ? "warning" : "neutral"}
+                  icon={
+                    member.role === "admin" ? (
+                      <Shield className="size-3" aria-hidden="true" />
+                    ) : undefined
                   }
                 >
-                  {member.role === "admin" && (
-                    <Shield className="size-3" aria-hidden="true" />
-                  )}
                   {member.role === "admin" ? "Admin" : "Member"}
-                </span>
+                </Badge>
 
                 {/* Join date — hidden on very small screens */}
                 <span className="hidden text-xs text-slate-400 sm:block">

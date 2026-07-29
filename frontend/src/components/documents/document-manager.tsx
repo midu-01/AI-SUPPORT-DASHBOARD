@@ -13,7 +13,7 @@ import type { LucideIcon } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Card, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { mutationErrorMessage } from "@/components/ui/mutation-feedback";
@@ -345,10 +345,9 @@ export function DocumentManager() {
                     </Button>
 
                     <div className="col-span-2 flex flex-wrap items-center gap-x-2 gap-y-1 md:contents">
-                      {/* Type badge */}
-                      <span className="inline-flex w-fit items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                        {ext}
-                      </span>
+                      {/* Type badge. `chip`, not `pill`: a file extension reads
+                          as a value, not as a label attached to the row. */}
+                      <Badge shape="chip">{ext}</Badge>
 
                       {/* Size */}
                       <span className="text-xs text-slate-500">
