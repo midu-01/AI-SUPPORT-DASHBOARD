@@ -12,11 +12,14 @@ export default function ConversationsLoading() {
           <Skeleton className="h-7 w-40" />
           <Skeleton className="h-4 w-56" />
         </div>
-        <Skeleton className="h-8 w-40 rounded-lg" />
+        <Skeleton variant="control" className="h-8 w-40" />
       </div>
 
       {/* Search */}
-      <Skeleton className="mt-5 h-10 w-full rounded-lg" />
+      {/* Matches the search input's new `h-11 sm:h-10` from Step 2.4 — a
+          skeleton that is 4px shorter than the control it stands in for shifts
+          the page when data arrives. */}
+      <Skeleton variant="control" className="mt-5 h-11 w-full sm:h-10" />
 
       {/* List */}
       <Card className="mt-4">
@@ -27,7 +30,7 @@ export default function ConversationsLoading() {
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-3 w-24" />
               </div>
-              <Skeleton className="size-8 rounded-lg" />
+              <Skeleton variant="control" className="size-8" />
             </div>
           ))}
         </div>

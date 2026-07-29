@@ -427,6 +427,40 @@
   font-variant-numeric: tabular-nums slashed-zero;
 }
 
+/*
+  ── Skeleton shimmer ────────────────────────────────────────────────────────
+
+  Defined here rather than as an `--animate-*` theme key because the
+  reduced-motion fallback needs a *second* rule targeting the same element, and
+  a theme key gives one utility with nowhere to hang the fallback.
+
+  The sweep runs on `transform` only — compositor-friendly, no paint per frame.
+  1.4s is deliberately slower than the 300ms `slow` token: this is ambient
+  progress, not a state change, and a fast repeating sweep is the thing that
+  makes loading screens feel frantic.
+
+  Under `prefers-reduced-motion` the overlay is removed entirely rather than
+  merely slowed. The blanket rule above sets every animation to 0.01ms, which for
+  an infinite sweep would freeze the gradient mid-travel and leave a permanent
+  pale band across every placeholder — an artefact that looks like a rendering
+  bug. `display: none` leaves the flat tint, which is the intended static state.
+*/
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-shimmer {
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    display: none;
+  }
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-fg);

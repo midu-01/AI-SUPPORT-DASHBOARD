@@ -30,7 +30,7 @@ export default function DashboardLoading() {
       <div className="grid gap-4 sm:grid-cols-3">
         {[0, 1, 2].map((i) => (
           <Card key={i} className="flex items-center gap-4 p-4">
-            <Skeleton className="size-10 rounded-lg" />
+            <Skeleton variant="control" className="size-10" />
             <div className="flex-1">
               <Skeleton className="h-7 w-16" />
               <Skeleton className="mt-1.5 h-3 w-20" />

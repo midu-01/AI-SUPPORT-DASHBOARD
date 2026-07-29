@@ -15,6 +15,7 @@ import { Shield, UserPlus } from "lucide-react";
 import { InviteMemberDialog } from "@/components/layout/invite-member-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { useOrg } from "@/lib/org-context";
@@ -45,20 +46,25 @@ export function MembersContent() {
     return (
       <div className="mx-auto max-w-3xl" aria-busy="true" aria-live="polite">
         <span className="sr-only">Loading members…</span>
+        {/* These six were hand-rolled `animate-pulse` divs (a Step 2.8 item),
+            fixed here rather than three steps later: with the shimmer landing in
+            this step they would have been the only placeholders in the app that
+            do not animate, and under `prefers-reduced-motion` the blanket rule
+            from Step 1.5 had already left them as inert grey boxes. */}
         <div className="space-y-2">
-          <div className="h-7 w-32 animate-pulse rounded-md bg-slate-200" />
-          <div className="h-4 w-56 animate-pulse rounded-md bg-slate-200" />
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-4 w-56" />
         </div>
         <Card className="mt-5">
           <div className="divide-y divide-border">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 px-4 py-3">
-                <div className="size-9 animate-pulse rounded-full bg-slate-200" />
+                <Skeleton variant="circle" className="size-9" />
                 <div className="min-w-0 flex-1 space-y-2">
-                  <div className="h-4 w-2/5 animate-pulse rounded-md bg-slate-200" />
-                  <div className="h-3 w-1/3 animate-pulse rounded-md bg-slate-200" />
+                  <Skeleton className="h-4 w-2/5" />
+                  <Skeleton className="h-3 w-1/3" />
                 </div>
-                <div className="h-5 w-16 animate-pulse rounded-full bg-slate-200" />
+                <Skeleton variant="circle" className="h-5 w-16" />
               </div>
             ))}
           </div>
