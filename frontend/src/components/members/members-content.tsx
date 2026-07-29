@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip } from "@/components/ui/tooltip";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { useOrg } from "@/lib/org-context";
@@ -134,12 +135,14 @@ export function MembersContent() {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">
+                  <p className="truncate text-sm font-medium text-fg">
                     {member.full_name}
                   </p>
-                  <p className="truncate text-xs text-slate-500">
+                  {/* Email, not name: a truncated address hides the domain, which
+                      is usually how you tell two colleagues apart. */}
+                  <Tooltip label={member.email} className="text-xs text-fg-muted">
                     {member.email}
-                  </p>
+                  </Tooltip>
                 </div>
 
                 {/* Role badge. The shield is decorative — "Admin" is written

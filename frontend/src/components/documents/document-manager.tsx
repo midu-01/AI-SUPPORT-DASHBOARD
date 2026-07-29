@@ -19,6 +19,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { mutationErrorMessage } from "@/components/ui/mutation-feedback";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { useOrg } from "@/lib/org-context";
 import { ApiError } from "@/lib/api-client";
@@ -319,9 +320,16 @@ export function DocumentManager() {
                         className="size-4 shrink-0 text-slate-400"
                         aria-hidden="true"
                       />
-                      <span className="truncate text-sm font-medium text-slate-900">
+                      {/* Filenames are the longest strings in the app and the
+                          most likely to be truncated — and unlike a conversation
+                          title, the tail (`…-v3-final.docx`) is often the part
+                          that distinguishes two rows. */}
+                      <Tooltip
+                        label={doc.original_filename}
+                        className="text-sm font-medium text-fg"
+                      >
                         {doc.original_filename}
-                      </span>
+                      </Tooltip>
                     </div>
 
                     {/* Delete. Placed explicitly rather than auto-flowed, so on
