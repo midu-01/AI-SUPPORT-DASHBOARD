@@ -269,6 +269,69 @@
   --shadow-flat: 0 0 rgb(0 0 0 / 0);
   --shadow-raised: 0 1px 2px 0 rgb(15 23 42 / 0.05);
   --shadow-floating: 0 4px 12px -2px rgb(15 23 42 / 0.1);
+
+  /* ── Motion ───────────────────────────────────────────────────────────────
+     Durations resolve through Tailwind's `--transition-duration-*` namespace,
+     so these produce `duration-fast`, `duration-base`, `duration-slow` and
+     `duration-exit` utilities.
+
+     Only ONE easing key is added. Tailwind already defines `--ease-in`,
+     `--ease-out` and `--ease-in-out` with the canonical curves, and those are
+     the right ones: ease-out for entering (fast start, gentle settle), ease-in
+     for exiting. Redefining them would be an override, not an addition — the
+     same trap the radius scale set (see the radius comment above).
+
+     `exit` is ~65% of `base`, not equal to it. Symmetric timing makes a UI feel
+     sluggish: an element leaving has already served its purpose, so it should
+     clear out faster than it arrived. */
+  --transition-duration-fast: 150ms; /* hover, colour shifts       */
+  --transition-duration-base: 200ms; /* the default for entrances  */
+  --transition-duration-slow: 300ms; /* dialogs, drawers, panels   */
+  --transition-duration-exit: 130ms; /* ~65% of base — see above   */
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* press feedback only */
+}
+
+/*
+  ── Reduced motion ──────────────────────────────────────────────────────────
+
+  This block exists BEFORE any motion is written (Phase 6), not after. Retrofitting
+  reduced-motion support means auditing every animation already shipped and
+  missing some; establishing the fallback first means every animation added
+  later is covered the moment it lands.
+
+  `prefers-reduced-motion: reduce` is set by users with vestibular disorders,
+  migraine triggers, and motion sensitivity. It is an accessibility requirement
+  (WCAG 2.3.3), not a preference toggle.
+
+  The `!important` and the universal selector are deliberate. This has to defeat
+  utility classes, inline styles, and third-party CSS without knowing in advance
+  what they are — a safety net has to be unconditional to be a safety net.
+
+  Why `0.01ms` rather than `0`: a zero duration prevents `transitionend` and
+  `animationend` from firing in some engines, so any JS waiting on those events
+  hangs forever. An imperceptible non-zero duration still fires them.
+
+  `scroll-behavior: auto` overrides smooth scrolling — the conversation thread's
+  auto-scroll is exactly the kind of unrequested movement this setting is for.
+
+  What is NOT disabled: opacity-only fades and colour transitions are not
+  vestibular triggers, but they are caught by the blanket rule anyway. That is
+  the right trade — losing a 150ms colour fade costs nothing, whereas leaving a
+  transform animation running costs a user real discomfort. Anything genuinely
+  needed under reduced motion must convey its meaning without movement, which is
+  why `Skeleton` gets a static-tint fallback in Step 2.5 rather than relying on
+  its pulse.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /*
