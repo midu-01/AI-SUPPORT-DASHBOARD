@@ -235,7 +235,11 @@ export function ConversationDetail({
           </form>
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-slate-900">
+            {/* Not a `SectionHeader`: this title swaps into an inline rename form
+                and carries two adjacent icon buttons, so it owns its own layout.
+                It takes `text-title` so it still ranks with the other page
+                headings rather than drifting one step below them. */}
+            <h1 className="min-w-0 truncate text-title text-fg">
               {conversation.title}
             </h1>
             <Button

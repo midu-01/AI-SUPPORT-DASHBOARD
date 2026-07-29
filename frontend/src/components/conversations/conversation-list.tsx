@@ -14,6 +14,7 @@ import {
   MutationFeedback,
   mutationErrorMessage,
 } from "@/components/ui/mutation-feedback";
+import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
@@ -149,25 +150,16 @@ export function ConversationList() {
 
   return (
     <>
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-            Conversations
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Manage your support conversations.
-          </p>
-        </div>
-        <Button
-          onClick={() => create.mutate()}
-          loading={create.isPending}
-          size="sm"
-        >
-          <MessageSquarePlus className="size-4" aria-hidden="true" />
-          New conversation
-        </Button>
-      </div>
+      <SectionHeader
+        title="Conversations"
+        description="Manage your support conversations."
+        action={
+          <Button onClick={() => create.mutate()} loading={create.isPending}>
+            <MessageSquarePlus className="size-4" aria-hidden="true" />
+            New conversation
+          </Button>
+        }
+      />
 
       <MutationFeedback
         message={mutationError}

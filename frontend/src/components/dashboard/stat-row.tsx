@@ -2,11 +2,17 @@ import { FileText, MessageSquare, MessagesSquare } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
+import { IconTile } from "@/components/ui/icon-tile";
+// Aliased: this file already has a local `Stat` type for its row data, and the
+// primitive is the more likely thing to be renamed later.
+import { Stat as StatDisplay } from "@/components/ui/stat";
 
 interface Stat {
   label: string;
   value: number;
   icon: LucideIcon;
+  /** Domain hue — drives both the icon tile and the card's accent rule. */
+  tone: "conversations" | "documents";
 }
 
 /**
@@ -22,26 +28,35 @@ export function StatRow({
   documents: number;
   messages: number;
 }) {
+  // Each stat carries its domain hue, so the row is scannable by colour before
+  // any label is read. Messages belong to the conversations domain — they are not
+  // a fourth area, and inventing a hue for them would imply they were.
   const stats: Stat[] = [
-    { label: "Conversations", value: conversations, icon: MessagesSquare },
-    { label: "Messages", value: messages, icon: MessageSquare },
-    { label: "Documents", value: documents, icon: FileText },
+    {
+      label: "Conversations",
+      value: conversations,
+      icon: MessagesSquare,
+      tone: "conversations",
+    },
+    {
+      label: "Messages",
+      value: messages,
+      icon: MessageSquare,
+      tone: "conversations",
+    },
+    { label: "Documents", value: documents, icon: FileText, tone: "documents" },
   ];
 
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      {stats.map(({ label, value, icon: Icon }) => (
-        <Card key={label} className="flex items-center gap-4 p-4">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-            <Icon className="size-5" aria-hidden="true" />
-          </span>
-          <span className="min-w-0">
-            {/* Tabular figures so the numbers don't jitter as they change width. */}
-            <span className="block text-2xl font-semibold tabular-nums text-slate-900">
-              {value.toLocaleString()}
-            </span>
-            <span className="block truncate text-xs text-slate-500">{label}</span>
-          </span>
+      {stats.map(({ label, value, icon, tone }) => (
+        <Card
+          key={label}
+          accent={tone}
+          className="flex items-center gap-4 p-4"
+        >
+          <IconTile icon={icon} tone={tone} />
+          <StatDisplay label={label} value={value.toLocaleString()} />
         </Card>
       ))}
     </div>

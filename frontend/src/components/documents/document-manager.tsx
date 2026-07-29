@@ -17,6 +17,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Card, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { mutationErrorMessage } from "@/components/ui/mutation-feedback";
+import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { useOrg } from "@/lib/org-context";
@@ -186,15 +187,10 @@ export function DocumentManager() {
 
   return (
     <>
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-          Documents
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Upload and manage your support documents.
-        </p>
-      </div>
+      <SectionHeader
+        title="Documents"
+        description="Upload and manage your support documents."
+      />
 
       {/* Upload zone */}
       <div

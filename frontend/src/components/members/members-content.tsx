@@ -15,6 +15,7 @@ import { Shield, UserPlus } from "lucide-react";
 import { InviteMemberDialog } from "@/components/layout/invite-member-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
@@ -88,27 +89,22 @@ export function MembersContent() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-            Members
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
+      <SectionHeader
+        title="Members"
+        description={
+          <>
             {activeOrg?.name} · {members.length}{" "}
             {members.length === 1 ? "member" : "members"}
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setShowInvite(true)}
-        >
-          <UserPlus className="size-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline">Invite member</span>
-          <span className="sm:hidden">Invite</span>
-        </Button>
-      </div>
+          </>
+        }
+        action={
+          <Button onClick={() => setShowInvite(true)}>
+            <UserPlus className="size-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Invite member</span>
+            <span className="sm:hidden">Invite</span>
+          </Button>
+        }
+      />
 
       <Card>
         {members.length === 0 ? (
