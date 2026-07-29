@@ -13,7 +13,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Shield, UserPlus } from "lucide-react";
 
 import { InviteMemberDialog } from "@/components/layout/invite-member-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SectionHeader } from "@/components/ui/section-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip } from "@/components/ui/tooltip";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { useOrg } from "@/lib/org-context";
@@ -44,20 +48,25 @@ export function MembersContent() {
     return (
       <div className="mx-auto max-w-3xl" aria-busy="true" aria-live="polite">
         <span className="sr-only">Loading members…</span>
+        {/* These six were hand-rolled `animate-pulse` divs (a Step 2.8 item),
+            fixed here rather than three steps later: with the shimmer landing in
+            this step they would have been the only placeholders in the app that
+            do not animate, and under `prefers-reduced-motion` the blanket rule
+            from Step 1.5 had already left them as inert grey boxes. */}
         <div className="space-y-2">
-          <div className="h-7 w-32 animate-pulse rounded-md bg-slate-200" />
-          <div className="h-4 w-56 animate-pulse rounded-md bg-slate-200" />
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-4 w-56" />
         </div>
         <Card className="mt-5">
           <div className="divide-y divide-border">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-5 py-4">
-                <div className="size-9 animate-pulse rounded-full bg-slate-200" />
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <Skeleton variant="circle" className="size-9" />
                 <div className="min-w-0 flex-1 space-y-2">
-                  <div className="h-4 w-2/5 animate-pulse rounded-md bg-slate-200" />
-                  <div className="h-3 w-1/3 animate-pulse rounded-md bg-slate-200" />
+                  <Skeleton className="h-4 w-2/5" />
+                  <Skeleton className="h-3 w-1/3" />
                 </div>
-                <div className="h-5 w-16 animate-pulse rounded-full bg-slate-200" />
+                <Skeleton variant="circle" className="h-5 w-16" />
               </div>
             ))}
           </div>
@@ -81,27 +90,22 @@ export function MembersContent() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-            Members
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
+      <SectionHeader
+        title="Members"
+        description={
+          <>
             {activeOrg?.name} · {members.length}{" "}
             {members.length === 1 ? "member" : "members"}
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setShowInvite(true)}
-        >
-          <UserPlus className="size-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline">Invite member</span>
-          <span className="sm:hidden">Invite</span>
-        </Button>
-      </div>
+          </>
+        }
+        action={
+          <Button onClick={() => setShowInvite(true)}>
+            <UserPlus className="size-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Invite member</span>
+            <span className="sm:hidden">Invite</span>
+          </Button>
+        }
+      />
 
       <Card>
         {members.length === 0 ? (
@@ -123,7 +127,7 @@ export function MembersContent() {
             {members.map((member) => (
               <li
                 key={member.user_id}
-                className="flex items-center gap-3 px-5 py-3.5"
+                className="flex items-center gap-3 px-4 py-3"
               >
                 {/* Avatar placeholder — initials in a circle */}
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs font-semibold text-brand">
@@ -131,27 +135,28 @@ export function MembersContent() {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">
+                  <p className="truncate text-sm font-medium text-fg">
                     {member.full_name}
                   </p>
-                  <p className="truncate text-xs text-slate-500">
+                  {/* Email, not name: a truncated address hides the domain, which
+                      is usually how you tell two colleagues apart. */}
+                  <Tooltip label={member.email} className="text-xs text-fg-muted">
                     {member.email}
-                  </p>
+                  </Tooltip>
                 </div>
 
-                {/* Role badge */}
-                <span
-                  className={
-                    member.role === "admin"
-                      ? "inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
-                      : "inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
+                {/* Role badge. The shield is decorative — "Admin" is written
+                    out, so the icon is redundant reinforcement, not the signal. */}
+                <Badge
+                  tone={member.role === "admin" ? "warning" : "neutral"}
+                  icon={
+                    member.role === "admin" ? (
+                      <Shield className="size-3" aria-hidden="true" />
+                    ) : undefined
                   }
                 >
-                  {member.role === "admin" && (
-                    <Shield className="size-3" aria-hidden="true" />
-                  )}
                   {member.role === "admin" ? "Admin" : "Member"}
-                </span>
+                </Badge>
 
                 {/* Join date — hidden on very small screens */}
                 <span className="hidden text-xs text-slate-400 sm:block">

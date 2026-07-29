@@ -5,6 +5,7 @@ import { RecentDocuments } from "@/components/dashboard/recent-documents";
 import { StatRow } from "@/components/dashboard/stat-row";
 import { UserCard } from "@/components/dashboard/user-card";
 import { DashboardAwaitingOrg } from "@/components/dashboard/awaiting-org";
+import { SectionHeader } from "@/components/ui/section-header";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { useOrg } from "@/lib/org-context";
 import { useQuery } from "@tanstack/react-query";
@@ -34,14 +35,10 @@ export function DashboardContent() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-          Welcome back, {summary.user.full_name.split(" ")[0]}
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Your conversations and documents at a glance.
-        </p>
-      </div>
+      <SectionHeader
+        title={`Welcome back, ${summary.user.full_name.split(" ")[0]}`}
+        description="Your conversations and documents at a glance."
+      />
 
       <StatRow
         conversations={summary.total_conversations}

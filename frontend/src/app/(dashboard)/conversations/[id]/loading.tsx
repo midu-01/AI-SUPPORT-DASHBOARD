@@ -11,7 +11,7 @@ export default function ConversationDetailLoading() {
 
       <div className="mt-4 flex items-center gap-2">
         <Skeleton className="h-7 w-64" />
-        <Skeleton className="size-8 rounded-lg" />
+        <Skeleton variant="control" className="size-8" />
       </div>
       <Skeleton className="mt-2 h-4 w-32" />
 
@@ -26,10 +26,8 @@ export default function ConversationDetailLoading() {
               )}
             >
               <Skeleton
-                className={cn(
-                  "h-16 rounded-xl",
-                  i % 2 === 0 ? "w-3/5" : "w-2/5",
-                )}
+                variant="rect"
+                className={cn("h-16", i % 2 === 0 ? "w-3/5" : "w-2/5")}
               />
             </div>
           ))}

@@ -1,43 +1,515 @@
 @import "tailwindcss";
 
 /*
-  Light mode only — see ASSUMPTIONS.md. The scaffold's `prefers-color-scheme:
-  dark` block was removed rather than left in place: a dark palette that no page
-  is designed or checked against renders half the UI unreadable the moment a
-  reviewer's OS is set to dark. An absent feature beats a broken one.
+  ── Design tokens ───────────────────────────────────────────────────────────
 
-  Semantic tokens only. Neutrals are Tailwind's slate scale throughout, so there
-  is one grey in play rather than two competing ones. The single exception is
-  document status, where amber ("processing") and emerald ("indexed") carry
-  meaning slate cannot — and `StatusBadge` spells the status out in text as
-  well, so the colour is never the only signal.
+  This file is the whole design system. Five families, in the order they appear:
+
+    Colour     ramps → roles → semantic (detailed below)
+    Type       `text-display` / `-metric` / `-title` / `-label`, each carrying
+               its own line-height, tracking and weight
+    Shape      `rounded-chip` / `-control` / `-card` / `-panel`
+    Elevation  `shadow-sunken` / `-flat` / `-raised` / `-floating`
+    Motion     `duration-fast` / `-base` / `-slow` / `-exit`, `ease-spring`
+
+  ── A rule that this file learned the hard way ──────────────────────────────
+
+  Tailwind v4 already defines `--radius-*`, `--ease-*` and `--shadow-*`. Writing
+  one of those keys does not *add* a token — it silently **overrides** Tailwind's,
+  retroactively changing every existing utility that used it. That is why the
+  shape and elevation tokens are role names (`rounded-card`, not `--radius-xl`)
+  and why only one easing key is defined here.
+
+  Before adding a token to this file, check `node_modules/tailwindcss/theme.css`
+  for the key. A collision produces no error — just a whole-app visual change
+  with no obvious cause.
+
+  ── Colour, in three tiers ──────────────────────────────────────────────────
+
+    1. Brand ramp — `brand-50…950`. A raw scale, no meaning attached.
+    2. Roles      — `canvas`, `surface`, `border`, `fg`, `brand`. What a colour
+                    is *for*. Components name these, never a ramp step, so
+                    re-theming is one line here rather than a find-and-replace.
+    3. Semantic   — status (success / warning / danger / info) and the three
+                    domain hues (conversations / documents / members).
+
+  There is deliberately NO neutral ramp: Tailwind v4 already ships `slate-50…950`
+  and duplicating it under a second name would give two greys with one meaning.
+  The role tokens below name specific slate steps; raw `slate-*` utilities remain
+  available for one-off cases.
+
+  ── Why literal values, not `var()` references ──────────────────────────────
+
+  Each role repeats a hex rather than pointing at a ramp token. That looks like
+  duplication and is deliberate: `@theme` tree-shakes theme variables that no
+  utility references, so a role defined as `var(--color-slate-50)` would break
+  the moment nothing in the app happens to use `bg-slate-50`. Every step is
+  annotated with the scale step it equals, so the relationship stays readable
+  without depending on emission order.
+
+  ── Contrast ────────────────────────────────────────────────────────────────
+
+  Every pair is annotated with its *measured* WCAG 2.1 ratio, computed from the
+  sRGB relative-luminance formula. Two thresholds are in play:
+
+    • 4.5:1 — normal body text (1.4.3)
+    • 3:1   — large text (≥24px, or ≥19px bold) and UI glyphs (1.4.11)
+
+  Four semantic fills (`success`, `warning`, `info`, `documents`) clear 3:1 but
+  NOT 4.5:1 against white. They are fills and glyphs; each has an `-on` variant
+  — a darker step — for when the same meaning must be carried by *text*. Using
+  `--color-warning` as a text colour is a contrast bug, not a style choice.
+  That is what `-on` is for.
+
+  ── Light mode only ─────────────────────────────────────────────────────────
+
+  See ASSUMPTIONS.md. The scaffold's `prefers-color-scheme: dark` block was
+  removed rather than left in place: a dark palette that no page is designed or
+  checked against renders half the UI unreadable the moment a reviewer's OS is
+  set to dark. An absent feature beats a broken one.
+
+  The `shell-*` tokens are NOT a dark theme. They are a dark chrome around a
+  light workspace — a fixed part of the design, identical regardless of OS
+  setting. There is still exactly one theme.
 */
+
 @theme inline {
-  --color-canvas: #f8fafc; /* slate-50   — app background  */
-  --color-surface: #ffffff; /* cards, panels                */
-  --color-border: #e2e8f0; /* slate-200  — hairlines       */
-  --color-brand: #4f46e5; /* indigo-600 — primary action  */
-  --color-brand-hover: #4338ca; /* indigo-700                   */
-  --color-danger: #dc2626; /* red-600    — destructive     */
+  /* ── Brand ramp (indigo) ──────────────────────────────────────────────────
+     Step 600 is the pre-existing brand value, confirmed against the design
+     database rather than changed — see ui-plan.md Step 1.1. Matches Tailwind's
+     `indigo-*`, but carries the brand *name*: if the brand hue ever changes it
+     changes here, whereas `indigo-600` scattered through components would be a
+     find-and-replace. */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+  --color-brand-950: #1e1b4b;
+
+  /* ── Roles: light workspace ───────────────────────────────────────────────
+     Measured:
+       fg on surface .............. 17.9:1 ✓ body text
+       fg on canvas ............... 17.1:1 ✓ body text
+       fg-muted on surface ......... 4.76:1 ✓ body text
+       fg-muted on canvas .......... 4.55:1 ✓ body text — 0.05 of headroom.
+                                            Do NOT darken `canvas` or lighten
+                                            `fg-muted`; either breaks AA for
+                                            every muted label on the app
+                                            background.
+       fg-subtle on surface ........ 2.60:1 ✗ decorative/disabled glyphs ONLY */
+  --color-canvas: #f8fafc; /* slate-50  — app background      */
+  --color-surface: #ffffff; /*           — cards, panels        */
+  --color-surface-sunken: #f8fafc; /* slate-50  — inset data rows      */
+  --color-border: #e2e8f0; /* slate-200 — hairlines            */
+  --color-border-strong: #cbd5e1; /* slate-300 — emphasised dividers  */
+  --color-fg: #0f172a; /* slate-900 — primary text         */
+  --color-fg-muted: #64748b; /* slate-500 — secondary text       */
+  --color-fg-subtle: #94a3b8; /* slate-400 — glyphs, never text   */
+
+  /* ── Roles: brand ─────────────────────────────────────────────────────────
+       white on brand ............. 6.29:1 ✓ button label
+       white on brand-hover ....... 7.90:1 ✓ button label
+       brand on surface ........... 6.29:1 ✓ link text
+       brand on canvas ............ 6.01:1 ✓ link text
+       brand on brand-subtle ...... 5.62:1 ✓ active nav pill */
+  --color-brand: #4f46e5; /* brand-600 — primary action */
+  --color-brand-hover: #4338ca; /* brand-700                  */
+  --color-brand-subtle: #eef2ff; /* brand-50  — tinted surface */
+
+  /* ── Shell: the dark chrome ───────────────────────────────────────────────
+     Sidebar and topbar only. Kept deliberately quiet — the design database
+     lists "heavy chrome" as the primary anti-pattern for this product class,
+     so the shell exists to provide figure-ground separation and nothing else.
+
+     Measured:
+       shell-fg on shell .......... 16.3:1 ✓ nav labels
+       shell-fg-muted on shell ..... 6.96:1 ✓ secondary nav text
+       shell-border on canvas ...... 9.90:1 ✓ the sidebar's outer edge
+       shell-border on shell ....... 1.72:1 — internal hairline, below 3:1 by
+                                            design: it separates regions within
+                                            one panel, it is not a control
+                                            boundary. Anything interactive on
+                                            the shell needs `shell-raised` or a
+                                            focus ring, not this. */
+  --color-shell: #0f172a; /* slate-900 — sidebar, topbar        */
+  --color-shell-raised: #1e293b; /* slate-800 — active nav, hover      */
+  --color-shell-border: #334155; /* slate-700 — internal hairline      */
+  --color-shell-fg: #f1f5f9; /* slate-100 — nav labels             */
+  --color-shell-fg-muted: #94a3b8; /* slate-400 — secondary shell text   */
+
+  /* ── Semantic: status ─────────────────────────────────────────────────────
+     Three variants each, NOT interchangeable:
+       <name>         fill and icon glyph  — ≥3:1 with white on it
+       <name>-subtle  pale background
+       <name>-on      text, on `-subtle` or on white — ≥4.5:1
+
+     Measured (white on fill / `-on` on white / `-on` on `-subtle`):
+       success .... 3.77:1 △   5.49:1 ✓   5.21:1 ✓
+       warning .... 3.19:1 △   5.02:1 ✓   4.79:1 ✓
+       danger ..... 4.83:1 ✓   6.47:1 ✓   5.91:1 ✓
+       info ....... 4.09:1 △   5.93:1 ✓   5.63:1 ✓
+
+     △ = large text and glyphs only. `danger` is the one fill that also clears
+     4.5:1 — which is why the existing `bg-danger text-white` button is correct
+     as it stands, and why the same pattern would NOT be correct for the others. */
+  --color-success: #059669; /* emerald-600 */
+  --color-success-subtle: #ecfdf5; /* emerald-50  */
+  --color-success-on: #047857; /* emerald-700 */
+
+  --color-warning: #d97706; /* amber-600   */
+  --color-warning-subtle: #fffbeb; /* amber-50    */
+  --color-warning-on: #b45309; /* amber-700   */
+
+  --color-danger: #dc2626; /* red-600     */
+  --color-danger-subtle: #fef2f2; /* red-50      */
+  --color-danger-on: #b91c1c; /* red-700     */
+
+  --color-info: #0284c7; /* sky-600     */
+  --color-info-subtle: #f0f9ff; /* sky-50      */
+  --color-info-on: #0369a1; /* sky-700     */
+
+  /* ── Semantic: domain hues ────────────────────────────────────────────────
+     One identity hue per feature area, so the dashboard is scannable by colour
+     and shape rather than by reading every label. Used on icon tiles, metric
+     accents and card leading edges — never as the sole carrier of meaning.
+
+     Same three-variant contract as status. Measured (white on fill / on-subtle):
+       conversations  6.29:1 ✓   5.62:1 ✓
+       documents      3.68:1 △   5.15:1 ✓
+       members        3.77:1 △   5.21:1 ✓
+
+     Far enough apart on the wheel to be told apart at 16px icon size. All three
+     are taken from the design-database row for their sub-domain rather than
+     picked by eye — see ui-plan.md Step 1.1. `conversations` and `members`
+     intentionally equal `brand` and `success`: a conversation *is* the brand
+     surface, and members reuse the success hue rather than inventing a fourth. */
+  --color-conversations: #4f46e5; /* brand-600   */
+  --color-conversations-subtle: #eef2ff; /* brand-50    */
+  --color-conversations-on: #4f46e5; /* brand-600   */
+
+  --color-documents: #0891b2; /* cyan-600    */
+  --color-documents-subtle: #ecfeff; /* cyan-50     */
+  --color-documents-on: #0e7490; /* cyan-700    */
+
+  --color-members: #059669; /* emerald-600 */
+  --color-members-subtle: #ecfdf5; /* emerald-50  */
+  --color-members-on: #047857; /* emerald-700 */
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* ── Type scale ───────────────────────────────────────────────────────────
+     Three additions above Tailwind's ramp, plus a label style below it. The app
+     previously topped out at `text-xl` (1.25rem), so every heading and every
+     number sat within one 0.5rem band and the page read as an undifferentiated
+     wall of 14–20px text. These exist to create scale contrast.
+
+     Each is declared with its `--line-height`, `--letter-spacing` and
+     `--font-weight` sub-properties, so `text-display` alone sets all four
+     values — no separate `font-bold tracking-tight leading-none` incantation to
+     forget or get wrong at one call site. (Tailwind v4 resolves these
+     modifiers automatically for any `--text-*` namespace key.)
+
+     Negative tracking on the large sizes is not decoration: default letter
+     spacing is tuned for body copy and looks conspicuously loose above ~2rem.
+     The label style inverts it — small caps text needs *positive* tracking to
+     stay legible.
+
+     Weights follow the design-database "precision system" for AI dashboards
+     (ui-plan.md Step 1.1): 700 at display sizes, 600 for headings, 400 body,
+     500 for labels. Geist carries this unchanged — it is the same class of
+     neutral grotesque the row was specified against. */
+  --text-display: 2.75rem; /* 44px — the dashboard hero metric      */
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.04em;
+  --text-display--font-weight: 700;
+
+  --text-metric: 2rem; /* 32px — secondary stat numbers          */
+  --text-metric--line-height: 1.1;
+  --text-metric--letter-spacing: -0.03em;
+  --text-metric--font-weight: 700;
+
+  --text-title: 1.375rem; /* 22px — page h1, sits above text-xl    */
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.015em;
+  --text-title--font-weight: 600;
+
+  --text-label: 0.6875rem; /* 11px — uppercase eyebrow labels       */
+  --text-label--line-height: 1.45;
+  --text-label--letter-spacing: 0.09em;
+  --text-label--font-weight: 500;
+
+  /* ── Radius: roles, not a scale ───────────────────────────────────────────
+     Tailwind v4 ALREADY defines `--radius-sm` … `--radius-4xl`. Redefining
+     those keys would silently resize every existing `rounded-lg` (31 uses) and
+     `rounded-xl` (17 uses) in the app — a whole-app visual change disguised as
+     a token addition. So these are *role* names layered alongside the built-in
+     scale, matching how the colour roles work above.
+
+     The two middle values are deliberately identical to what the app already
+     uses, so `rounded-card` and `rounded-xl` render the same: adopting these
+     names is a pure rename with no visual diff, and the hierarchy becomes
+     legible at the call site. `chip` and `panel` extend the range at both ends.
+
+       chip     4px  = radius-xs-ish  — badges, inline type tags
+       control  8px  = radius-lg      — buttons, inputs, small icon tiles
+       card    12px  = radius-xl      — cards, list containers
+       panel   16px  = radius-2xl     — full-width panels, dialogs
+
+     `rounded-full` stays as-is for avatars and pills. */
+  --radius-chip: 0.25rem;
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-panel: 1rem;
+
+  /* ── Elevation: four named tiers ──────────────────────────────────────────
+     Replaces "one `shadow-sm` on everything" with a hierarchy that means
+     something. Same reasoning as radius — these are role names beside
+     Tailwind's `--shadow-*` scale, not replacements for it.
+
+       sunken    inset  — data rows inside a card. Pair with `bg-surface-sunken`.
+       flat      none   — border-only surfaces. An explicit token so "no shadow"
+                          is a deliberate choice at the call site rather than an
+                          omission someone later "fixes".
+       raised    soft   — cards, the default for content containers
+       floating  soft+  — dialogs, popovers, menus
+
+     CONSTRAINT (ui-plan.md Step 1.1): the design database lists "complex
+     shadows + 3D effects" as an anti-pattern for this product class. Every tier
+     here is a short-offset, low-opacity, single-hue shadow. No layered stacks,
+     no coloured shadows, no long throws. `floating` is the largest and it is
+     still only a 12px blur — depth comes from the shell/workspace contrast, not
+     from shadow drama. */
+  --shadow-sunken: inset 0 1px 2px 0 rgb(15 23 42 / 0.04);
+  --shadow-flat: 0 0 rgb(0 0 0 / 0);
+  --shadow-raised: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --shadow-floating: 0 4px 12px -2px rgb(15 23 42 / 0.1);
+
+  /* ── Motion ───────────────────────────────────────────────────────────────
+     Durations resolve through Tailwind's `--transition-duration-*` namespace,
+     so these produce `duration-fast`, `duration-base`, `duration-slow` and
+     `duration-exit` utilities.
+
+     Only ONE easing key is added. Tailwind already defines `--ease-in`,
+     `--ease-out` and `--ease-in-out` with the canonical curves, and those are
+     the right ones: ease-out for entering (fast start, gentle settle), ease-in
+     for exiting. Redefining them would be an override, not an addition — the
+     same trap the radius scale set (see the radius comment above).
+
+     `exit` is ~65% of `base`, not equal to it. Symmetric timing makes a UI feel
+     sluggish: an element leaving has already served its purpose, so it should
+     clear out faster than it arrived. */
+  --transition-duration-fast: 150ms; /* hover, colour shifts       */
+  --transition-duration-base: 200ms; /* the default for entrances  */
+  --transition-duration-slow: 300ms; /* dialogs, drawers, panels   */
+  --transition-duration-exit: 130ms; /* ~65% of base — see above   */
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* press feedback only */
+
+  /* ── Focus ring ───────────────────────────────────────────────────────────
+     Two colours, because no single ring colour clears 3:1 against both a white
+     workspace and the dark shell. Measured:
+
+       brand      on surface .......  6.29:1 ✓
+       brand      on shell .........  2.84:1 ✗  ← below WCAG 1.4.11 (3:1)
+       brand      on shell-raised ..  2.33:1 ✗  ← worse, and this is the ACTIVE
+                                                  nav item — the single most
+                                                  likely thing to be focused
+       brand-300  on shell .........  8.96:1 ✓
+       brand-300  on shell-raised ..  7.34:1 ✓
+       brand-300  on surface .......  1.99:1 ✗
+
+     So the ring has to change colour by context. `--color-focus` is the default
+     (light workspace); `--color-focus-on-shell` is applied by the shell
+     containers in Phase 3 via the `--focus-ring` indirection below.
+
+     NOTE this is a real defect in the current app, not just future-proofing:
+     the active nav item is already `bg-brand/10` and the ring against it is
+     already low-contrast. The dark shell makes it obvious rather than causing
+     it. */
+  --color-focus: #4f46e5; /* brand-600 — on light surfaces */
+  --color-focus-on-shell: #a5b4fc; /* brand-300 — on dark chrome    */
+}
+
+/*
+  ── Reduced motion ──────────────────────────────────────────────────────────
+
+  This block exists BEFORE any motion is written (Phase 6), not after. Retrofitting
+  reduced-motion support means auditing every animation already shipped and
+  missing some; establishing the fallback first means every animation added
+  later is covered the moment it lands.
+
+  `prefers-reduced-motion: reduce` is set by users with vestibular disorders,
+  migraine triggers, and motion sensitivity. It is an accessibility requirement
+  (WCAG 2.3.3), not a preference toggle.
+
+  The `!important` and the universal selector are deliberate. This has to defeat
+  utility classes, inline styles, and third-party CSS without knowing in advance
+  what they are — a safety net has to be unconditional to be a safety net.
+
+  Why `0.01ms` rather than `0`: a zero duration prevents `transitionend` and
+  `animationend` from firing in some engines, so any JS waiting on those events
+  hangs forever. An imperceptible non-zero duration still fires them.
+
+  `scroll-behavior: auto` overrides smooth scrolling — the conversation thread's
+  auto-scroll is exactly the kind of unrequested movement this setting is for.
+
+  What is NOT disabled: opacity-only fades and colour transitions are not
+  vestibular triggers, but they are caught by the blanket rule anyway. That is
+  the right trade — losing a 150ms colour fade costs nothing, whereas leaving a
+  transform animation running costs a user real discomfort. Anything genuinely
+  needed under reduced motion must convey its meaning without movement, which is
+  why `Skeleton` gets a static-tint fallback in Step 2.5 rather than relying on
+  its pulse.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+  ── Spacing rhythm ──────────────────────────────────────────────────────────
+
+  No spacing tokens are defined here, deliberately. Tailwind v4 derives every
+  spacing utility from a single `--spacing: 0.25rem` multiplier, so `p-2` … `p-8`
+  already produce exactly the values this design needs. Adding
+  `--space-*` variables would alias utilities that already work and give two
+  ways to express one gap.
+
+  What the design *does* require is using a consistent subset. The density
+  target (see ui-plan.md Step 1.1) sets the working rhythm at:
+
+      8px   p-2 / gap-2   — inline: icon-to-label, chip padding
+      12px  p-3 / gap-3   — tight: dense row padding
+      16px  p-4 / gap-4   — default: card body, standard row
+      24px  p-6 / gap-6   — loose: card body on large panels
+      32px  p-8 / gap-8   — section separation within a page
+
+  `1` (4px) is available for inline icon nudges. `12` (48px) and `16` (64px) are
+  for page-level section breaks only. Values outside this set — `p-5`, `p-7`,
+  `gap-2.5` — are what produced the current uniform-padding look; the existing
+  `px-5 py-3.5` card header is exactly the pattern being replaced.
+*/
+
+/*
+  ── Tabular figures ─────────────────────────────────────────────────────────
+
+  `tabular-nums` already exists in Tailwind, so this is not a new utility — it
+  is a *reminder in code* of where it is mandatory rather than optional:
+
+    • Stat numbers that re-render (the dashboard counts)
+    • Any column of numbers (file sizes, message counts)
+    • Timestamps and dates
+
+  Proportional digits have per-glyph widths, so a `1` is narrower than a `7`.
+  A number that changes on refetch visibly reflows the elements beside it, and a
+  column of right-aligned sizes fails to line up. `.numeric` bundles the two
+  properties that fix it: fixed-width digits, and slashed zero so `0` and `O`
+  are distinguishable in IDs.
+
+  Applied via a class rather than globally on `body`: tabular figures are
+  slightly wider and marginally less comfortable in running prose, so body copy
+  keeps proportional digits.
+*/
+@utility numeric {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/*
+  ── Skeleton shimmer ────────────────────────────────────────────────────────
+
+  Defined here rather than as an `--animate-*` theme key because the
+  reduced-motion fallback needs a *second* rule targeting the same element, and
+  a theme key gives one utility with nowhere to hang the fallback.
+
+  The sweep runs on `transform` only — compositor-friendly, no paint per frame.
+  1.4s is deliberately slower than the 300ms `slow` token: this is ambient
+  progress, not a state change, and a fast repeating sweep is the thing that
+  makes loading screens feel frantic.
+
+  Under `prefers-reduced-motion` the overlay is removed entirely rather than
+  merely slowed. The blanket rule above sets every animation to 0.01ms, which for
+  an infinite sweep would freeze the gradient mid-travel and leave a permanent
+  pale band across every placeholder — an artefact that looks like a rendering
+  bug. `display: none` leaves the flat tint, which is the intended static state.
+*/
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-shimmer {
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    display: none;
+  }
 }
 
 body {
   background: var(--color-canvas);
-  color: var(--color-slate-900);
+  color: var(--color-fg);
 }
 
 /*
+  ── Focus ring ──────────────────────────────────────────────────────────────
+
   A visible focus ring on keyboard navigation only. `:focus-visible` rather than
   `:focus`, so a mouse click doesn't leave a ring behind — which is the usual
   reason people delete focus styling altogether and break keyboard navigation
   in the process.
+
+  The ring resolves through `--focus-ring`, which inherits. Any container can
+  retarget every descendant's ring by setting that one property — the shell does
+  exactly this below. Descendants need no awareness of where they are rendered,
+  which matters because `Button` appears in both the workspace and the shell and
+  must not have to know which.
+
+  `outline` rather than `box-shadow`: outline is unaffected by `overflow: hidden`
+  on an ancestor, does not participate in layout, and follows `border-radius` in
+  every current engine. A `box-shadow` ring gets clipped inside the document
+  table's scroll container.
+
+  The 2px offset is what makes the ring legible against a same-hue background —
+  it inserts a gap of the underlying surface between element and ring, so an
+  indigo ring on the indigo-tinted active nav item still reads as a ring.
 */
 @layer base {
+  :root {
+    --focus-ring: var(--color-focus);
+  }
+
   :focus-visible {
-    outline: 2px solid var(--color-brand);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
+  }
+
+  /*
+    Dark chrome: retarget the ring for the sidebar, topbar, and mobile drawer.
+    `brand-600` measures 2.84:1 on `shell` and 2.33:1 on `shell-raised` — both
+    below the 3:1 that WCAG 1.4.11 requires of a focus indicator. `brand-300`
+    measures 8.96:1 and 7.34:1.
+
+    Applied by class rather than by element so it also covers the mobile drawer,
+    which is a `<dialog>` and therefore not inside `<aside>`. Phase 3 puts
+    `.on-shell` on all three containers.
+  */
+  .on-shell {
+    --focus-ring: var(--color-focus-on-shell);
   }
 }

@@ -9,10 +9,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CONTROL_BASE, controlBorder } from "@/components/ui/field";
 import {
   MutationFeedback,
   mutationErrorMessage,
 } from "@/components/ui/mutation-feedback";
+import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
@@ -148,25 +150,16 @@ export function ConversationList() {
 
   return (
     <>
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-            Conversations
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Manage your support conversations.
-          </p>
-        </div>
-        <Button
-          onClick={() => create.mutate()}
-          loading={create.isPending}
-          size="sm"
-        >
-          <MessageSquarePlus className="size-4" aria-hidden="true" />
-          New conversation
-        </Button>
-      </div>
+      <SectionHeader
+        title="Conversations"
+        description="Manage your support conversations."
+        action={
+          <Button onClick={() => create.mutate()} loading={create.isPending}>
+            <MessageSquarePlus className="size-4" aria-hidden="true" />
+            New conversation
+          </Button>
+        }
+      />
 
       <MutationFeedback
         message={mutationError}
@@ -188,8 +181,13 @@ export function ConversationList() {
             setPage(1);
           }}
           className={cn(
-            "block w-full rounded-lg border border-border bg-surface py-2 pl-10 pr-8 text-sm text-slate-900",
-            "placeholder:text-slate-400",
+            // Not a `TextField`: no visible label (the placeholder plus the
+            // icon carry it) and the icon needs asymmetric padding. It still
+            // takes the shared chrome, because the iOS auto-zoom-below-16px
+            // problem applies to every input, not only labelled ones.
+            CONTROL_BASE,
+            controlBorder(),
+            "h-11 pl-10 pr-8 sm:h-10",
           )}
           aria-label="Search conversations"
         />
@@ -229,7 +227,11 @@ export function ConversationList() {
               }
               action={
                 !effectiveSearch ? (
+                  {/* `subtle`, not `primary`: the page header already has a
+                      primary "New conversation" button, and two filled brand
+                      buttons on one screen compete instead of ranking. */}
                   <Button
+                    variant="subtle"
                     size="sm"
                     onClick={() => create.mutate()}
                     loading={create.isPending}
@@ -245,7 +247,7 @@ export function ConversationList() {
             <ul className="divide-y divide-border" role="list">
               {data.items.map((conversation) => (
                 <li key={conversation.id}>
-                  <div className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-slate-50">
+                  <div className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-canvas">
                     <Link
                       href={`/conversations/${conversation.id}`}
                       className="min-w-0 flex-1"
@@ -262,7 +264,7 @@ export function ConversationList() {
                     </Link>
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => confirmDelete(conversation.id)}
                       aria-label={`Delete "${conversation.title}"`}
                     >
@@ -332,12 +334,12 @@ function ConversationListSkeleton() {
       <div className="divide-y divide-border" aria-busy="true" aria-live="polite">
         <span className="sr-only">Loading conversations…</span>
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex items-center justify-between px-5 py-3">
+          <div key={i} className="flex items-center justify-between px-4 py-3">
             <div className="min-w-0 flex-1 space-y-2">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-3 w-24" />
             </div>
-            <Skeleton className="size-8 rounded-lg" />
+            <Skeleton variant="control" className="size-8" />
           </div>
         ))}
       </div>

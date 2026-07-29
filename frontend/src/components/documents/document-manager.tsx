@@ -13,11 +13,13 @@ import type { LucideIcon } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Card, EmptyState } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { mutationErrorMessage } from "@/components/ui/mutation-feedback";
+import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { useOrg } from "@/lib/org-context";
 import { ApiError } from "@/lib/api-client";
@@ -186,15 +188,10 @@ export function DocumentManager() {
 
   return (
     <>
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-          Documents
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Upload and manage your support documents.
-        </p>
-      </div>
+      <SectionHeader
+        title="Documents"
+        description="Upload and manage your support documents."
+      />
 
       {/* Upload zone */}
       <div
@@ -291,7 +288,7 @@ export function DocumentManager() {
         ) : (
           <Card>
             {/* Header row — hidden on mobile, visible md+ */}
-            <div className="hidden border-b border-border px-5 py-2.5 text-xs font-medium uppercase tracking-wider text-slate-500 md:grid md:grid-cols-[1fr_80px_80px_100px_80px_40px]">
+            <div className="hidden border-b border-border px-4 py-2.5 text-label uppercase text-fg-muted md:grid md:grid-cols-[1fr_80px_80px_100px_80px_40px]">
               <span>Name</span>
               <span>Type</span>
               <span>Size</span>
@@ -315,7 +312,7 @@ export function DocumentManager() {
                     // metadata wrapped onto a second. At `md` the wrapper below
                     // switches to `display: contents`, which dissolves it so its
                     // children become cells of the table row itself.
-                    className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 px-5 py-3 transition-colors hover:bg-slate-50 md:grid-cols-[1fr_80px_80px_100px_80px_40px]"
+                    className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 px-4 py-3 transition-colors hover:bg-canvas md:grid-cols-[1fr_80px_80px_100px_80px_40px]"
                   >
                     {/* Name */}
                     <div className="flex min-w-0 items-center gap-2">
@@ -323,9 +320,16 @@ export function DocumentManager() {
                         className="size-4 shrink-0 text-slate-400"
                         aria-hidden="true"
                       />
-                      <span className="truncate text-sm font-medium text-slate-900">
+                      {/* Filenames are the longest strings in the app and the
+                          most likely to be truncated — and unlike a conversation
+                          title, the tail (`…-v3-final.docx`) is often the part
+                          that distinguishes two rows. */}
+                      <Tooltip
+                        label={doc.original_filename}
+                        className="text-sm font-medium text-fg"
+                      >
                         {doc.original_filename}
-                      </span>
+                      </Tooltip>
                     </div>
 
                     {/* Delete. Placed explicitly rather than auto-flowed, so on
@@ -333,7 +337,7 @@ export function DocumentManager() {
                         pushed down with the metadata. */}
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => setPendingDeleteId(doc.id)}
                       aria-label={`Delete "${doc.original_filename}"`}
                       className="col-start-2 row-start-1 justify-self-end md:col-start-6"
@@ -345,10 +349,9 @@ export function DocumentManager() {
                     </Button>
 
                     <div className="col-span-2 flex flex-wrap items-center gap-x-2 gap-y-1 md:contents">
-                      {/* Type badge */}
-                      <span className="inline-flex w-fit items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                        {ext}
-                      </span>
+                      {/* Type badge. `chip`, not `pill`: a file extension reads
+                          as a value, not as a label attached to the row. */}
+                      <Badge shape="chip">{ext}</Badge>
 
                       {/* Size */}
                       <span className="text-xs text-slate-500">
@@ -411,15 +414,15 @@ function DocumentTableSkeleton() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="flex items-center gap-3 px-5 py-3"
+            className="flex items-center gap-3 px-4 py-3"
           >
-            <Skeleton className="size-4 rounded" />
+            <Skeleton className="size-4" />
             <div className="min-w-0 flex-1 space-y-2">
               <Skeleton className="h-4 w-3/5" />
               <Skeleton className="h-3 w-24" />
             </div>
-            <Skeleton className="h-5 w-16 rounded-full" />
-            <Skeleton className="size-8 rounded-lg" />
+            <Skeleton variant="circle" className="h-5 w-16" />
+            <Skeleton variant="control" className="size-8" />
           </div>
         ))}
       </div>

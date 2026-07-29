@@ -12,7 +12,9 @@ import {
   MutationFeedback,
   mutationErrorMessage,
 } from "@/components/ui/mutation-feedback";
+import { CONTROL_BASE, controlBorder } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useOrgFetch } from "@/hooks/use-org-fetch";
 import { useOrg } from "@/lib/org-context";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
@@ -146,13 +148,8 @@ export function ConversationDetail({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-resize the textarea as the user types.
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [draft]);
+  // Auto-resize now lives in `Textarea` (`autoResize` prop), which also caps the
+  // growth at `maxRows` — the version inlined here had no cap.
 
   const send = useMutation({
     mutationFn: (content: string) =>
@@ -208,12 +205,18 @@ export function ConversationDetail({
               onKeyDown={(e) => {
                 if (e.key === "Escape") cancelRename();
               }}
-              className="flex-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-slate-900"
+              // Shares the control chrome but not `TextField`: the visible <h1>
+              // it replaces is the label, so a second one would duplicate it.
+              className={cn(
+                CONTROL_BASE,
+                controlBorder(),
+                "h-11 flex-1 sm:h-10",
+              )}
               aria-label="Conversation title"
             />
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               type="submit"
               aria-label="Save title"
             >
@@ -223,7 +226,7 @@ export function ConversationDetail({
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={cancelRename}
               aria-label="Cancel rename"
             >
@@ -232,12 +235,16 @@ export function ConversationDetail({
           </form>
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-slate-900">
+            {/* Not a `SectionHeader`: this title swaps into an inline rename form
+                and carries two adjacent icon buttons, so it owns its own layout.
+                It takes `text-title` so it still ranks with the other page
+                headings rather than drifting one step below them. */}
+            <h1 className="min-w-0 truncate text-title text-fg">
               {conversation.title}
             </h1>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={() => {
                 setRenameValue(conversation.title);
                 setIsRenaming(true);
@@ -251,7 +258,7 @@ export function ConversationDetail({
 
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={() => setShowDeleteConfirm(true)}
           aria-label="Delete conversation"
         >
@@ -270,7 +277,7 @@ export function ConversationDetail({
 
       {/* Message thread */}
       <Card className="mt-5 flex flex-col" style={{ minHeight: "24rem" }}>
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-4">
           {messages.length === 0 ? (
             <EmptyState message="No messages yet. Start the conversation below." />
           ) : (
@@ -318,7 +325,7 @@ export function ConversationDetail({
           onSubmit={handleSend}
           className="flex items-end gap-2 border-t border-border p-4"
         >
-          <textarea
+          <Textarea
             ref={textareaRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -330,7 +337,8 @@ export function ConversationDetail({
             }}
             placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
             rows={1}
-            className="flex-1 resize-none overflow-hidden rounded-lg border border-border bg-surface px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
+            autoResize
+            className="flex-1"
             aria-label="Message"
             disabled={send.isPending}
           />
@@ -369,7 +377,7 @@ export function ConversationDetailSkeleton() {
       <span className="sr-only">Loading conversation…</span>
       <div className="flex items-center gap-2">
         <Skeleton className="h-7 w-64" />
-        <Skeleton className="size-8 rounded-lg" />
+        <Skeleton variant="control" className="size-8" />
       </div>
       <Skeleton className="mt-2 h-4 w-32" />
       <Card className="mt-5" style={{ minHeight: "24rem" }}>
@@ -380,10 +388,8 @@ export function ConversationDetailSkeleton() {
               className={cn("flex", i % 2 === 0 ? "justify-end" : "justify-start")}
             >
               <Skeleton
-                className={cn(
-                  "h-16 rounded-xl",
-                  i % 2 === 0 ? "w-3/5" : "w-2/5",
-                )}
+                variant="rect"
+                className={cn("h-16", i % 2 === 0 ? "w-3/5" : "w-2/5")}
               />
             </div>
           ))}

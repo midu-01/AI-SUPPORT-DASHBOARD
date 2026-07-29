@@ -92,7 +92,6 @@ export function OrgSwitcher() {
             className={cn(
               "h-8 appearance-none rounded-lg border border-border bg-surface",
               "pl-7 pr-6 text-xs font-medium text-slate-700",
-              "focus:outline-none focus:ring-2 focus:ring-brand/40",
               "max-w-[140px] truncate sm:max-w-[180px]",
               "cursor-pointer transition-colors hover:bg-slate-50",
             )}

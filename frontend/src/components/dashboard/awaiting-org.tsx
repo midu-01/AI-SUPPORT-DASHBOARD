@@ -35,17 +35,21 @@ export function DashboardAwaitingOrg({ refreshServer = true }: { refreshServer?:
         <Skeleton className="h-7 w-48" />
         <Skeleton className="mt-2 h-4 w-72" />
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        <Skeleton className="h-24 rounded-xl" />
-        <Skeleton className="h-24 rounded-xl" />
-        <Skeleton className="h-24 rounded-xl" />
+      {/* `sm:grid-cols-3`, not bare `grid-cols-3`: the real page and
+          `loading.tsx` are both responsive here, and three 33%-wide stat cards
+          on a 375px viewport leave no room for their numbers. (Step 2.8 lists
+          this; fixed here because the file was already being touched.) */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Skeleton variant="rect" className="h-24" />
+        <Skeleton variant="rect" className="h-24" />
+        <Skeleton variant="rect" className="h-24" />
       </div>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Skeleton className="h-64 rounded-xl" />
-          <Skeleton className="h-48 rounded-xl" />
+          <Skeleton variant="rect" className="h-64" />
+          <Skeleton variant="rect" className="h-48" />
         </div>
-        <Skeleton className="h-48 rounded-xl" />
+        <Skeleton variant="rect" className="h-48" />
       </div>
     </div>
   );
